@@ -1,0 +1,6 @@
+/* 스타일 진입점. 아래 순서대로 겹칩니다. */
+@import './tokens.css';
+@import './base.css';
+@import './shell.css';
+@import './table.css';
+@import './home.css';

@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summation — 서비스 기획 11건 한눈에 보기</title><style>
+:root{--bg:#f7f7f6;--surface:#fff;--line:#e4e2df;--line-soft:#efedea;--ink:#1c1b1a;
+--ink-2:#57534e;--ink-3:#8b857e;--accent:#3b5bdb;
+--c-collect:#3b5bdb;--c-collect-bg:#eef1fd;--c-review:#b45309;--c-review-bg:#fdf3e3;
+--c-media:#7c3aed;--c-media-bg:#f4efff;--c-data:#0f766e;--c-data-bg:#e6f4f2;
+--radius:12px;--mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.65;
+font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",system-ui,sans-serif;
+-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 96px}
+header.top{padding:52px 0 28px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+h1{font-size:38px;line-height:1.15;margin:10px 0 8px;letter-spacing:-.02em}
+.sub{color:var(--ink-2);font-size:15px;margin:0 0 18px;max-width:74ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font-size:12px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);
+border-radius:999px;padding:4px 11px}.pill b{color:var(--ink);font-weight:600}
+.navbar{position:sticky;top:0;z-index:20;background:rgba(247,247,246,.92);
+backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--line);margin-bottom:28px}
+.navbar-in{max-width:1180px;margin:0 auto;padding:9px 24px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.navbar a{display:inline-flex;gap:6px;align-items:center;font-size:12px;text-decoration:none;
+color:var(--ink-2);border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 9px}
+.navbar a:hover{border-color:var(--accent);color:var(--accent)}
+.navbar a .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-weight:600}
+.nav-label{font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.08em;margin-right:4px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:36px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.stat .v{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.stat .k{font-size:12px;color:var(--ink-3);margin-top:4px}
+.stat .d{font-size:11px;color:var(--ink-3);margin-top:7px;padding-top:7px;border-top:1px solid var(--line-soft)}
+h2.sec{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+margin:0 0 14px;display:flex;align-items:center;gap:10px}
+h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.matrix-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+overflow:hidden;margin-bottom:40px}.scroller{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1080px;font-size:12.5px}
+thead th{background:#fbfaf9;text-align:left;font-weight:600;color:var(--ink-2);font-size:11px;
+letter-spacing:.05em;padding:11px 13px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td{padding:12px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#fcfcfb}
+td.num{font-family:var(--mono);font-weight:700;color:var(--ink);width:34px}
+td.nm{color:var(--ink);font-weight:600;min-width:170px}
+td.nm a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
+td.nm a:hover{border-bottom-color:var(--ink-3)}
+td.nm .slug{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);font-weight:400;margin-top:2px}
+.tag{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.t-collect{color:var(--c-collect);background:var(--c-collect-bg)}
+.t-review{color:var(--c-review);background:var(--c-review-bg)}
+.t-media{color:var(--c-media);background:var(--c-media-bg)}
+.t-data{color:var(--c-data);background:var(--c-data-bg)}
+s{text-decoration:none;color:var(--ink-3);display:block;font-size:11.5px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+margin-bottom:18px;overflow:hidden;scroll-margin-top:60px}
+.card-h{display:flex;gap:14px;align-items:flex-start;padding:20px 22px 16px;border-bottom:1px solid var(--line-soft)}
+.badge{flex:none;width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
+font-family:var(--mono);font-weight:700;font-size:14px}
+.b-collect{color:var(--c-collect);background:var(--c-collect-bg)}
+.b-review{color:var(--c-review);background:var(--c-review-bg)}
+.b-media{color:var(--c-media);background:var(--c-media-bg)}
+.b-data{color:var(--c-data);background:var(--c-data-bg)}
+.card-h h3{margin:0 0 3px;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.card-h .slug{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.card-h .lead{margin:8px 0 0;color:var(--ink-2);font-size:13.5px;max-width:84ch}
+.card-h .tags{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line-soft);background:#fcfcfb}
+.fact{padding:12px 22px;border-right:1px solid var(--line-soft)}.fact:last-child{border-right:0}
+.fact .k{font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);font-weight:600;text-transform:uppercase}
+.fact .v{font-size:12.5px;color:var(--ink);margin-top:3px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.col{padding:18px 22px;border-right:1px solid var(--line-soft);border-top:1px solid var(--line-soft)}
+.col h4{margin:0 0 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.col ul{margin:0;padding-left:16px}
+.col li{margin-bottom:6px;color:var(--ink-2);font-size:12.5px}
+.col li strong,.col li b{color:var(--ink);font-weight:600}
+.col li ul{margin-top:5px}.col li li{font-size:12px;color:var(--ink-3)}
+code{font-family:var(--mono);font-size:11px;background:#f4f3f1;border:1px solid var(--line-soft);
+border-radius:4px;padding:1px 5px;color:var(--ink-2)}
+.note{font-size:11.5px;color:var(--ink-3);background:#faf9f7;border-left:2px solid var(--line);
+padding:7px 10px;border-radius:0 5px 5px 0}
+.hl{font-size:11px;font-weight:400;border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-left:4px}
+.mut{color:var(--ink-3)}
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3)}
+footer p{margin:0 0 5px}
+@media (max-width:960px){.stats,.facts{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}}
+</style></head><body>
+<div class="wrap"><header class="top">
+<div class="eyebrow">Summation</div><h1>서비스 기획 11건 한눈에 보기</h1>
+<p class="sub"><code>~/Desktop/myProject/Project</code> 하위 11개 폴더의 <code>SPEC.md</code>에서
+<strong>첫 줄부터 「시스템 구성」까지</strong>를 추출해 하나로 정리한 요약본입니다.</p>
+<div class="meta"><span class="pill">기획 <b>11건</b></span>
+<span class="pill">기준일 <b>2026-08-13</b></span>
+<span class="pill">수록 범위 <b>제목 · 목적 · 핵심 기능/처리 흐름 · 시스템 구성</b></span>
+<span class="pill">상태 <b>01 구현 대기 · 02~11 SPEC 초안</b></span></div>
+</header></div>
+<nav class="navbar"><div class="navbar-in"><span class="nav-label">바로가기</span><a href="#p01"><span class="n">01</span> 컨퍼런스 자동 수집</a><a href="#p02"><span class="n">02</span> 브랜드명 표기·오타 검수</a><a href="#p03"><span class="n">03</span> 뉴스·보도자료 수집</a><a href="#p04"><span class="n">04</span> 명함 수집 및 정리</a><a href="#p05"><span class="n">05</span> 키워드 쿼리량 모니터링</a><a href="#p06"><span class="n">06</span> 현수막 인물사진 보정</a><a href="#p07"><span class="n">07</span> 블로그 콘텐츠 자동화</a><a href="#p08"><span class="n">08</span> 홈페이지 변경 트래킹</a><a href="#p09"><span class="n">09</span> 네이버 브랜드검색 모니터링</a><a href="#p10"><span class="n">10</span> MOU 현수막 제작·추출</a><a href="#p11"><span class="n">11</span> 2026 컨퍼런스 대시보드</a></div></nav>
+<div class="wrap">
+<div class="stats"><div class="stat"><div class="v">4</div><div class="k">Apps Script 정기 자동 수집</div><div class="d">01 · 03 · 05 · 09 — 시간 트리거</div></div><div class="stat"><div class="v">5</div><div class="k">Claude 처리 기반</div><div class="d">02 · 06 · 07 · 08 · 10</div></div><div class="stat"><div class="v">2</div><div class="k">수집·조회 전용</div><div class="d">04 로컬 OCR+Forms · 11 Sheets 조회</div></div><div class="stat"><div class="v">8</div><div class="k">Google Sheets 연동</div><div class="d">06 · 07 · 10 만 파일로 종료</div></div></div>
+<h2 class="sec">비교 매트릭스</h2>
+<div class="matrix-wrap"><div class="scroller"><table><thead><tr>
+<th>#</th><th>기획명</th><th>유형</th><th>한 줄 정의</th><th>트리거 · 주기</th>
+<th>산출 · 저장</th><th>사람이 하는 일</th></tr></thead><tbody><tr><td class='num'>01</td><td class='nm'><a href='#p01'>컨퍼런스 자동 수집</a><span class='slug'>01-conference-collector</span></td><td><span class='tag t-collect'>수집</span></td><td>AI보안·IT보안·교육 행사 일정을 모아 시트 + 월별 캘린더로 정리</td><td>주 3회 (월·수·금) 09:00<br><s>Apps Script 시간 트리거</s></td><td>Sheets 5탭<br><s>수집대상 / 행사데이터 / 변경이력 / 캘린더 / 로그</s></td><td>카테고리 · 중요도 · 메모 직접 수정</td></tr><tr><td class='num'>02</td><td class='nm'><a href='#p02'>브랜드명 표기·오타 검수</a><span class='slug'>02-figma-brand-guard</span></td><td><span class='tag t-review'>검수</span></td><td>Figma·PPT 문서의 오타와 브랜드 오표기를 찾아 위치 + 수정안 반환</td><td>온디맨드<br><s>AI 오피스가 파일/링크 전달 시</s></td><td>Figma: 노드 기준 제안 목록<br>PPT: 슬라이드별 전/후 리포트</td><td>브랜드 용어집 관리 · 수정 반영</td></tr><tr><td class='num'>03</td><td class='nm'><a href='#p03'>뉴스·보도자료 수집</a><span class='slug'>03-news-collector</span></td><td><span class='tag t-collect'>수집</span></td><td>키워드별 기업 뉴스룸 우선 수집, 없으면 네이버로 보완 → 주간 후보 선정</td><td>매일 1회 08:00<br><s>Apps Script 시간 트리거</s></td><td>Sheets 4탭<br><s>키워드관리 / 뉴스수집 / 주간후보 / 로그</s></td><td>키워드·뉴스룸 URL 등록 · 주간 후보 검토</td></tr><tr><td class='num'>04</td><td class='nm'><a href='#p04'>명함 수집 및 정리</a><span class='slug'>04-business-card-collector</span></td><td><span class='tag t-data'>데이터 통합</span></td><td>명함 사진(OCR)과 설문 응답, 두 경로를 하나의 명함 DB로 정규화</td><td>수동 실행 / OS 스케줄러<br><s>설문은 onFormSubmit</s></td><td>Sheets 3탭 + 로컬 이미지 폴더<br><s>미처리 → 처리완료 이동</s></td><td>‘검토필요’ 건 교정 · 중복후보 판정<br><s>자동 병합 없음</s></td></tr><tr><td class='num'>05</td><td class='nm'><a href='#p05'>키워드 쿼리량 모니터링</a><span class='slug'>05-keyword-query-monitor</span></td><td><span class='tag t-collect'>모니터링</span></td><td>주요 키워드는 일간, 서비스·솔루션·기술명은 월간으로 검색량 누적</td><td>매일 08:00 + 매월 1일 08:00<br><s>Apps Script 트리거 2종</s></td><td>Sheets 4탭<br><s>키워드관리 / 주요 / 월간 / 로그</s></td><td>키워드 추가 · 비활성화</td></tr><tr><td class='num'>06</td><td class='nm'><a href='#p06'>현수막 인물사진 보정</a><span class='slug'>06-banner-photo-corrector</span></td><td><span class='tag t-media'>이미지</span></td><td>현수막 배경 사진에 6개 규칙을 순서대로 적용해 보정본 1장 생성</td><td>온디맨드 · 1장 단위<br><s>채팅으로 사진 전달</s></td><td>원본파일명_corrected.jpg<br><s>+ 처리 로그(텍스트)</s></td><td>반사 제거 · 피부톤 결과 확인 후 승인</td></tr><tr><td class='num'>07</td><td class='nm'><a href='#p07'>블로그 콘텐츠 자동화</a><span class='slug'>07-blog-automation</span></td><td><span class='tag t-media'>콘텐츠</span></td><td>AI 오피스 산출물 → Word 원고 → 네이버 블로그 비공개 등록</td><td>온디맨드<br><s>담당자가 콘텐츠 전달</s></td><td>Word(.docx) 원고<br>네이버 블로그 비공개 글</td><td>네이버 로그인 직접 · 최종 공개 전환 직접</td></tr><tr><td class='num'>08</td><td class='nm'><a href='#p08'>홈페이지 변경 트래킹</a><span class='slug'>08-homepage-change-tracker</span></td><td><span class='tag t-review'>모니터링·검수</span></td><td>자사·타사 홈페이지를 매일 비교해 변경 시 PPT 보고서 + 메일 발송</td><td>매일 지정 시각<br><s>AI오피스에 크롤링 요청</s></td><td>스냅샷 + PPT 보고서 + 메일<br><s>변경 없으면 ‘이상없음’ 메일</s></td><td>홈페이지 목록 관리 · 보고서 확인</td></tr><tr><td class='num'>09</td><td class='nm'><a href='#p09'>네이버 브랜드검색 모니터링</a><span class='slug'>09-naver-brand-search-monitor</span></td><td><span class='tag t-collect'>모니터링</span></td><td>브랜드검색 영역을 매일 크롤링, 해시가 바뀐 날만 결과·이미지 누적</td><td>매일 08:00<br><s>Apps Script 시간 트리거</s></td><td>Sheets 3탭 + Google Drive<br><s>소재 이미지 저장</s></td><td>브랜드 키워드 추가 · 비활성화</td></tr><tr><td class='num'>10</td><td class='nm'><a href='#p10'>MOU 현수막 제작·추출</a><span class='slug'>10-mou-banner-generator</span></td><td><span class='tag t-media'>디자인</span></td><td>Canva 템플릿에 업체 로고·텍스트를 반영해 인쇄용 PDF 자동 추출</td><td>온디맨드 · 업체 폴더 단위<br><s>input/{업체명}/ 스캔</s></td><td>output/{업체명}_MOU현수막.pdf<br><s>CMYK · 재단선 포함 + 처리 로그</s></td><td>입력 폴더 준비 · 누락 항목 보완</td></tr><tr><td class='num'>11</td><td class='nm'><a href='#p11'>2026 컨퍼런스 대시보드</a><span class='slug'>11-conference-dashboard</span></td><td><span class='tag t-data'>대시보드</span></td><td>구글시트 3개 탭을 읽어 라온 참가 현황과 경쟁사 현황을 검색 조회</td><td>수동 Run<br><s>자동 스케줄 없음</s></td><td>정규화 캐시(JSON) + 화면 2종<br><s>조회 전용, 시트 쓰기 없음</s></td><td>시트 직접 기입 · Run 실행 시점 결정</td></tr></tbody></table></div></div>
+<h2 class="sec">기획별 상세</h2>
+
+<section class="card" id="p01">
+  <div class="card-h">
+    <div class="badge b-collect">01</div>
+    <div>
+      <h3>국내 AI보안·IT보안·교육 컨퍼런스 자동 수집</h3><div class="slug">01-conference-collector</div>
+      <p class="lead">국내에서 열리는 AI보안, IT보안, 교육 관련 컨퍼런스·전시·세션 일정을 자동으로 수집하고 Google Sheets에 정리하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-collect">수집 · Apps Script</span><span class="tag t-collect">기획 완료 / 구현 대기</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">주기</div><div class="v">매주 월·수·금 09:00</div></div><div class="fact"><div class="k">수집 방식</div><div class="v"><code>UrlFetchApp</code>으로 공개 페이지 조회</div></div><div class="fact"><div class="k">저장소</div><div class="v">Google Sheets (5개 탭)</div></div><div class="fact"><div class="k">특징</div><div class="v">중복 병합 · 변경 감지 · 캘린더 뷰</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>AI보안·IT보안·교육(에듀테크, 메타버스/XR 교육 등) 관련 행사 정보를 주기적으로 수집</li><li>일정·장소·주최/주관·참가 방식·등록 링크·주요 내용 기준으로 정리</li><li>Sheets에 누적해 검색·필터링·검토·캘린더 확인 가능</li><li>여러 사이트를 직접 방문하지 않아도 신규·변경 행사를 빠르게 확인</li></ul></div><div class="col"><h4>핵심 기능 요약</h4><ul><li><b>행사 정보 자동 수집</b><ul><li>행사명 · 기간 · 시간 · 장소 · 주최/주관 · 행사 유형(컨퍼런스/전시/세미나/웨비나/워크숍) · 참가비 · 사전등록 링크 · 원문 URL</li></ul></li><li><b>키워드 기반 카테고리 분류</b><ul><li>AI보안 · IT보안 · 정보보안 · 사이버보안 · 에듀테크 · 온라인 교육 · AI 교육 · 메타버스/XR</li></ul></li><li><b>행사 내용 요약</b><ul><li>개요, 주요 세션·전시 주제, 참가 대상, 확인 포인트, 업무 관련도</li></ul></li><li><b>중복 행사 병합</b> — 공식 사이트·전시장 일정·협회 공지에 중복 등재된 행사를 행사명/날짜/장소/URL 기준으로 하나로 관리</li><li><b>일정 변경 감지</b> — 행사명·날짜·장소·참가비·등록 링크·세션 변경 시 변경 전/후 값을 별도 컬럼 또는 이력 탭에 기록</li><li><b>게시</b> — 자동 수집분은 게시 상태로 기록, 담당자가 카테고리·중요도·메모 직접 수정 가능</li><li><b>캘린더 화면</b> — 시작일·종료일 기준 월별 표시, 카테고리별 색상 구분</li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>Apps Script 수집 스크립트</b> — 시간 기반 트리거, 주 3회(월·수·금) 09:00, <code>UrlFetchApp</code>으로 공개 페이지 조회·추출</li><li><b>수집 대상 관리 탭</b><ul><li><code>사용여부 | 카테고리 | 사이트명 | URL | 수집방식 | 비고</code></li><li>수집방식: 목록형 · 상세형 · 캘린더형 · 수동확인</li></ul></li><li><b>행사 데이터 탭</b><ul><li><code>수집일시 | 게시상태 | 카테고리 | 행사명 | 행사유형 | 시작일 | 종료일 | 시간 | 장소 | 주최/주관 | 참가비 | 등록링크 | 원문URL | 요약 | 변경여부 | 중요도 | 담당자메모</code></li></ul></li><li><b>변경 이력 탭</b><ul><li><code>변경감지일시 | 행사명 | 변경항목 | 이전값 | 변경값 | 원문URL</code></li></ul></li><li><b>캘린더 탭</b> — 월별 일정 표시, 카테고리별 색상, 예정/이번 주/종료 구분</li><li><b>로그 탭</b><ul><li><code>실행일시 | 수집대상수 | 신규행사수 | 변경행사수 | 오류수 | 오류내용</code></li></ul></li></ul></div></div>
+</section>
+<section class="card" id="p02">
+  <div class="card-h">
+    <div class="badge b-review">02</div>
+    <div>
+      <h3>문서 브랜드명 표기·오타 자동 검수</h3><div class="slug">02-figma-brand-guard</div>
+      <p class="lead">AI 오피스에서 전달받은 Figma·PPT 문서를 클로드가 검수해, 오타와 브랜드명 표기 오류를 찾아 수정안과 위치를 전달 매체에 맞는 형식으로 반환하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-review">검수 · Claude</span><span class="tag t-review">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">트리거</div><div class="v">AI 오피스가 파일/링크 전달 시</div></div><div class="fact"><div class="k">입력</div><div class="v">Figma 링크 · PPT 파일</div></div><div class="fact"><div class="k">기준 데이터</div><div class="v">브랜드 용어집 (Sheets)</div></div><div class="fact"><div class="k">출력</div><div class="v">매체별 위치 + 수정안</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>Figma·PPT를 눈으로 검수하지 않아도 오타·브랜드 표기 오류를 자동 탐지</li><li>브랜드 용어집(정식 표기 vs 오표기 후보) 대조로 일관된 브랜드명 보장</li><li>수정 위치를 원본에서 바로 찾을 수 있는 형태(Figma 노드, PPT 슬라이드/도형)로 표시</li><li>원본 매체에 맞는 포맷으로 반환해 바로 반영 가능</li></ul></div><div class="col"><h4>처리 흐름</h4><ul><li>① AI 오피스가 검수 대상 파일 또는 링크(Figma 링크 / PPT 파일)를 전달</li><li>② 문서에서 텍스트와 위치 정보를 추출</li><li>③ 클로드가 오타 검수와 브랜드명 표기 검수를 수행</li><li>④ 항목별 수정안과 원본 내 위치를 정리해 전달받은 매체 형식에 맞게 반환</li></ul></div><div class="col"><h4>핵심 기능 요약</h4><ul><li><b>입력 수신</b> — Figma는 파일 키 기준 텍스트 노드 조회, PPT는 슬라이드별 텍스트 상자 조회</li><li><b>오타 검수</b> — 맞춤법·띄어쓰기·중복 단어 등 일반 오탈자 후보 탐지</li><li><b>브랜드명 표기 검수</b> — 용어집 대조 + 용어집에 없는 신규 오표기 패턴도 문맥상 후보로 제안</li><li><b>수정안 생성</b> — 원문, 수정안, 검수 구분(오타/브랜드명), 판단 근거 기록</li><li><b>위치 표기</b> — Figma: 노드 ID·프레임/레이어명 / PPT: 슬라이드 번호·도형 위치</li><li><b>결과 반환</b> — Figma는 노드 기준 제안 목록, PPT는 슬라이드별 전/후 대조 리포트</li></ul></div><div class="col"><h4>데이터 구조</h4><ul><li><b>브랜드 용어집 탭</b> (담당자 관리)<ul><li><code>정식표기 | 오표기 후보 | 구분(브랜드명/제품명) | 비고</code></li></ul></li><li><b>검수 결과 탭</b><ul><li><code>처리일시 | 원본매체 | 원본링크또는파일명 | 위치 | 원문 | 수정안 | 구분(오타/브랜드명) | 반영여부</code></li></ul></li><li><b>로그 탭</b><ul><li><code>실행일시 | 처리건수 | 지적건수 | 오류수 | 오류내용</code></li></ul></li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>입력 어댑터</b><ul><li>Figma — Figma API/MCP로 파일의 텍스트 노드와 위치 조회</li><li>PPT — 슬라이드별 텍스트 상자와 위치 조회</li></ul></li><li><b>검수 엔진</b> — 추출된 텍스트와 브랜드 용어집을 함께 클로드에 전달해 오타·브랜드명 표기 검수 요청</li><li><b>출력 어댑터</b><ul><li>Figma용 — 노드 위치 기준 수정 제안 목록 (JSON 또는 코멘트 형식)</li><li>PPT용 — 슬라이드별 수정 전/후 대조 리포트</li></ul></li></ul></div></div>
+</section>
+<section class="card" id="p03">
+  <div class="card-h">
+    <div class="badge b-collect">03</div>
+    <div>
+      <h3>키워드 기반 뉴스·보도자료 자동 수집</h3><div class="slug">03-news-collector</div>
+      <p class="lead">등록된 키워드를 기준으로 기업 뉴스룸과 네이버(포털) 보도자료를 자동으로 수집하고, Google Sheets에 정리해 주간 콘텐츠 후보 선정까지 이어지는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-collect">수집 · Apps Script</span><span class="tag t-collect">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">주기</div><div class="v">매일 1회 08:00</div></div><div class="fact"><div class="k">수집 우선순위</div><div class="v">기업 뉴스룸 → 네이버 보완</div></div><div class="fact"><div class="k">중복 처리</div><div class="v">URL 기준 1건만 유지</div></div><div class="fact"><div class="k">2차 산출</div><div class="v">주간 콘텐츠 후보</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>등록 키워드별 관련 뉴스·보도자료를 주기적으로 자동 수집</li><li>기업 뉴스룸을 우선 수집, 없거나 결과가 없으면 네이버 뉴스/보도자료 검색으로 보완</li><li>Sheets에 누적해 검색·필터링·검토 가능</li><li>수집 기사 기반으로 주간 콘텐츠 후보(제목, 관련 키워드, 라온시큐어 연결 포인트) 선정</li><li>여러 사이트를 직접 방문하지 않아도 키워드별 최신 보도 현황 파악</li></ul></div><div class="col"><h4>핵심 기능 요약</h4><ul><li><b>키워드 기반 자동 크롤링</b> — 키워드 관리 탭을 순회, 뉴스룸 등록 키워드는 뉴스룸 우선, 신규 게시물 없으면 네이버 검색으로 대체</li><li><b>기사 정보 추출</b> — 제목 · 언론사(뉴스룸 발행 주체) · 발행일 · 원문 링크 · 검색된 키워드</li><li><b>요약 생성</b> — 본문 또는 스니펫 기반 짧은 요약, 요약 생성 시각 별도 기록</li><li><b>중복 기사 제거</b> — 뉴스룸·네이버 중복 수집분은 URL 기준 1건만 유지</li><li><b>수집 결과 집계</b> — 키워드·수집 회차별 기사건수 기록</li><li><b>주간 콘텐츠 후보 선정</b> — 한 주 수집분을 검토해 순위별 정리, 후보별 관련 키워드·선정 이유·라온시큐어 연결 포인트 기록</li><li><b>키워드 관리</b> — 시트에서 직접 추가·비활성화, 키워드별 기업 뉴스룸 URL 등록</li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>Apps Script 수집 스크립트</b> — 시간 기반 트리거, 매일 1회 08:00, <code>UrlFetchApp</code>으로 뉴스룸 페이지 또는 네이버 뉴스 검색 결과 조회</li><li><b>키워드 관리 탭</b> (담당자 입력)<ul><li><code>사용여부 | 키워드 | 기업뉴스룸 URL | 카테고리 | 등록일 | 비고</code></li><li>뉴스룸 URL이 비면 네이버 검색만 수행</li></ul></li><li><b>뉴스 수집 탭 (1차)</b><ul><li><code>수집일시 | 키워드 | 제목 | 언론사 | 발행일 | 요약 | 링크 | 기사건수 | 요약생성일시</code></li></ul></li><li><b>주간 콘텐츠 후보 탭 (2차)</b><ul><li><code>주차범위 | 순위 | 제목 후보 | 관련 키워드 | 선정 이유 | 라온시큐어 연결 포인트</code></li></ul></li><li><b>로그 탭</b><ul><li><code>실행일시 | 대상키워드수 | 신규기사수 | 오류수 | 오류내용</code></li></ul></li></ul></div></div>
+</section>
+<section class="card" id="p04">
+  <div class="card-h">
+    <div class="badge b-data">04</div>
+    <div>
+      <h3>명함 수집 및 정리 자동화</h3><div class="slug">04-business-card-collector</div>
+      <p class="lead">명함 정보를 사진 또는 설문조사 두 가지 방식으로 제공받아, 하나의 Google Sheets에 정리된 연락처 데이터베이스로 축적하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-data">데이터 통합 · 로컬 OCR</span><span class="tag t-data">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">사진 경로</div><div class="v">로컬 스크립트 수동/cron 실행</div></div><div class="fact"><div class="k">설문 경로</div><div class="v">Forms <code>onFormSubmit</code></div></div><div class="fact"><div class="k">OCR</div><div class="v">로컬 Tesseract (외부 전송 없음)</div></div><div class="fact"><div class="k">중복</div><div class="v">표시만, 자동 병합 없음</div></div></div>
+  <div class="cols"><div class="col"><h4>목적 · 입력 경로</h4><ul><li>두 가지 입력 경로로 명함 정보 수집<ul><li>명함 사진 — 로컬 폴더의 이미지, OCR로 텍스트 추출 필요</li><li>설문조사 응답 — Google Forms 텍스트 입력, 이미 구조화되어 추출 불필요</li></ul></li><li>두 경로 결과를 하나의 Sheets 안에서 관리</li><li>사진 추출분과 직접 입력분을 같은 스키마로 정규화해 검색·필터링·연락처 활용 가능</li><li><i>두 경로는 독립 파이프라인으로 동작하고 결과만 명함 DB 탭에 모입니다. 하나의 Form에 사진 업로드와 텍스트 입력을 함께 두지 않습니다. 사진은 Drive 업로드 없이 로컬 폴더(<code>명함사진/미처리</code>)에서 바로 처리합니다.</i></li></ul></div><div class="col"><h4>사진 제공 시 데이터 추출·저장 로직 <span class='hl'>핵심 검토 대상</span></h4><ul><li><b>1. 대상 파일 탐색</b><ul><li><code>명함사진/미처리</code>의 jpg·png 나열</li><li>처리 완료 시 <code>명함사진/처리완료</code>로 이동해 폴더 위치만으로 처리 여부 구분 (별도 이력 DB 없음)</li></ul></li><li><b>2. OCR 텍스트 추출</b> — 로컬 Tesseract(한글 언어팩), 이미지 외부 전송 없음<ul><li>정규식으로 명확한 항목 우선 추출: 이메일, 휴대폰(010-…), 유선번호, 웹사이트 URL</li><li>이름·회사·직책은 레이아웃 의존 → 최선 후보를 채우되 <b>처리상태 ‘검토필요’</b>로 표시하고 OCR 원문 전체 보존. 담당자 수동 교정이 기본 전제</li><li>원본 이미지는 삭제하지 않고 처리완료 폴더에 보관, DB 행에 로컬 파일 경로 기록</li></ul></li><li><b>3. 중복 검사</b><ul><li>이메일 또는 휴대폰 기준으로 기존 행(사진·설문 모두) 대조</li><li>일치해도 <b>자동 병합하지 않고</b> ‘중복후보’ 표시 + 기존 행 위치 기록 — 오탐 데이터 손실 위험으로 Phase 1 배제</li></ul></li><li><b>4. 명함 DB 기록 + 로그</b><ul><li>Sheets API로 명함 DB 탭에 신규 행 추가</li><li>로그 탭에 처리·검토필요·중복후보·오류 건수 기록</li></ul></li><li><b>설문 경로 (변경 없음)</b> — <code>onFormSubmit</code> 트리거로 텍스트 필드를 그대로 매핑, 처리상태 ‘확인완료’로 검토 대상 제외. 중복 검사 로직은 사진 경로와 동일</li></ul></div><div class="col"><h4>데이터 구조</h4><ul><li><b>설문지 응답 탭</b> — Forms 자동 생성, 텍스트 입력 전용, 원본 그대로 보존 (제출일시, 이름, 회사, 직책, 휴대폰, 이메일 등)</li><li><b>명함 DB 탭</b> — 사진·설문 공통 마스터<ul><li><code>등록일시 | 데이터출처(사진/설문) | 처리상태(검토필요/확인완료) | 이름 | 회사 | 부서 | 직책 | 휴대폰 | 유선전화 | 이메일 | 주소 | 웹사이트 | 로컬파일경로 | OCR원문 | 중복후보행 | 원본응답행번호 | 담당자메모</code></li><li><code>로컬파일경로</code>·<code>OCR원문</code>은 사진 경로 건에만 값이 들어감</li></ul></li><li><b>로그 탭</b><ul><li><code>실행일시 | 처리건수 | 사진경로건수 | 설문경로건수 | 검토필요건수 | 중복후보건수 | 오류내용</code></li></ul></li></ul></div><div class="col"><div class="note">이 SPEC에는 「시스템 구성」 절이 없어, 같은 위치의 「데이터 구조」까지 수록했습니다.</div></div></div>
+</section>
+<section class="card" id="p05">
+  <div class="card-h">
+    <div class="badge b-collect">05</div>
+    <div>
+      <h3>키워드 일/월간 쿼리량 누적 모니터링</h3><div class="slug">05-keyword-query-monitor</div>
+      <p class="lead">주요 키워드와 월간 키워드의 검색 쿼리량을 정기적으로 자동 수집해 Google Sheets에 누적 기록하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-collect">모니터링 · Apps Script</span><span class="tag t-collect">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">일간</div><div class="v">매일 08:00 — 라온 / 라온시큐어 / 라온그룹</div></div><div class="fact"><div class="k">월간</div><div class="v">매월 1일 08:00 — 서비스·솔루션·기술명</div></div><div class="fact"><div class="k">외부 API</div><div class="v">네이버 검색광고 키워드도구 · 오픈 API</div></div><div class="fact"><div class="k">저장소</div><div class="v">Google Sheets (4개 탭)</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>주요 키워드(라온, 라온시큐어, 라온그룹)의 검색 쿼리량을 매일 자동 수집·누적</li><li>서비스명·솔루션명·기술명과 그 상위 연관 키워드의 쿼리량을 매월 자동 수집·누적</li><li>수동 조회 없이 키워드별 추이를 시트에서 바로 확인</li></ul></div><div class="col"><h4>핵심 기능 요약</h4><ul><li><b>주요 키워드 일간 모니터링</b> — 3개 키워드를 매일 08:00 수집, ‘주요 키워드’ 시트에 날짜별 누적</li><li><b>월간 키워드 모니터링</b> — 서비스·솔루션·기술명과 상위 연관 키워드를 매월 1일 08:00 수집, ‘월간 키워드’ 시트에 월별 누적</li><li><b>시트별 구분 기록</b> — 주요/월간을 각각 별도 탭에 기록해 섞이지 않게 함</li><li><b>키워드 관리</b> — 담당자가 시트에서 직접 추가·비활성화</li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>Apps Script 수집 스크립트</b><ul><li>트리거 1 — 매일 08:00, 주요 키워드 수집 <code>everyDays(1).atHour(8)</code></li><li>트리거 2 — 매월 1일 08:00, 월간 키워드 수집 <code>onMonthDay(1).atHour(8)</code></li><li>네이버 검색광고 API 키워드도구로 월간 PC/모바일 검색량 조회</li><li>월간 키워드는 연관키워드 결과에서 상위 키워드를 함께 조회</li><li>네이버 오픈 API로 보조 지표(통합검색 문서수 등) 병행 조회</li></ul></li><li><b>키워드 관리 탭</b> (담당자 입력)<ul><li><code>사용여부 | 키워드 | 구분(주요/월간) | 카테고리(서비스/솔루션/기술명) | 등록일 | 비고</code></li></ul></li><li><b>주요 키워드 탭</b><ul><li><code>수집일 | 키워드 | PC 검색량 | 모바일 검색량 | 합계 검색량 | 비고</code></li></ul></li><li><b>월간 키워드 탭</b><ul><li><code>수집월 | 기준 키워드 | 상위 연관 키워드 | PC 검색량 | 모바일 검색량 | 합계 검색량 | 비고</code></li></ul></li><li><b>로그 탭</b><ul><li><code>실행일시 | 실행유형(일간/월간) | 대상키워드수 | 오류수 | 오류내용</code></li></ul></li></ul></div></div>
+</section>
+<section class="card" id="p06">
+  <div class="card-h">
+    <div class="badge b-media">06</div>
+    <div>
+      <h3>현수막 배경 인물사진 보정 자동화</h3><div class="slug">06-banner-photo-corrector</div>
+      <p class="lead">행사장에서 현수막을 배경으로 촬영한 인물사진을, 정해진 6가지 규칙에 따라 자동으로 보정·크롭·규격 변환하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-media">이미지 · Claude Vision</span><span class="tag t-media">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">처리 단위</div><div class="v">1장 (배치는 Phase 1 제외)</div></div><div class="fact"><div class="k">구조</div><div class="v">분석(Vision) ↔ 픽셀 처리 분리</div></div><div class="fact"><div class="k">출력</div><div class="v">가로 800~900px · DPI≥200 · JPG</div></div><div class="fact"><div class="k">전제</div><div class="v">완전 무인 아님 — 사용자 승인 필요</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>원본 사진을 Claude에게 전달하면 규칙을 순서대로 적용해 보정 결과물(JPG) 1장 반환</li><li>포토샵으로 수동 반복하던 작업(수평 맞추기, 반사 지우기, 톤 보정, 크롭, 규격 변환) 자동화</li></ul></div><div class="col"><h4>처리 흐름 <span class='hl'>핵심 검토 대상</span></h4><ul><li><b>1. 분석 단계 (Claude Vision)</b> — 좌표/영역을 JSON으로 판단<ul><li>현수막의 4개 꼭짓점 좌표 (휘어짐·기울기 보정 기준)</li><li>인물 뒤 하얀 칠판(반사 발생 영역)의 사각형 범위</li><li>인물 얼굴·피부 영역 바운딩 박스</li></ul></li><li><b>2. 보정 단계 (이미지 처리 스크립트)</b> — 순서대로 픽셀 처리<ul><li>① 원근/수평 보정 — 4점 perspective transform으로 평면화 + 수평</li><li>② 크롭 — 현수막이 상단을 꽉 채우는 비율로 프레임 재설정 (먼저 확정해 이후 처리 범위 축소)</li><li>③ 반사 제거 — 화이트보드 영역 마스크에 inpainting</li><li>④ 색감/밝기 — 화이트밸런스 자동 보정 + 노출/대비 정규화</li><li>⑤ 피부톤 — 얼굴 박스 내 피부 영역만, 보정폭 상한 적용</li><li>⑥ 출력 규격 — 가로 800~900px 리사이즈, DPI 200 이상, JPG 저장</li></ul></li><li><b>3. 검수</b> — 원본과 보정본을 나란히 미리보기. 반사 제거·피부톤처럼 오탐 가능성이 있는 단계는 사용자 확인 후 승인이 기본 전제 (Phase 1은 완전 무인 자동화가 아님)</li></ul></div><div class="col"><h4>규칙별 상세</h4><ul><li><b>현수막 휘어짐/수평 보정</b> — 4점 원근 변환 <span class='mut'>· 꼭짓점 오검출 시 수동 좌표 지정 필요</span></li><li><b>칠판 반사 제거</b> — 반사 영역 마스킹 + inpainting <span class='mut'>· 진하거나 반투명 겹침은 완전 제거 보장 안 됨</span></li><li><b>색감/밝기 보정</b> — 자동 화이트밸런스 + 노출 정규화 <span class='mut'>· 극단적 저조도/역광은 한계</span></li><li><b>피부톤 보정</b> — 얼굴 검출 → 피부 영역 톤 보정 <span class='mut'>· 보정폭 상한으로 과보정 방지</span></li><li><b>상단 크롭</b> — 꼭짓점 기준 프레임 재설정 <span class='mut'>· 인물이 경계에 걸리지 않게 여백 확보</span></li><li><b>출력 규격</b> — 가로 800~900px, DPI≥200, JPG <span class='mut'>· 세로는 원본 비율 유지</span></li></ul></div><div class="col"><h4>입력 / 출력</h4><ul><li><b>입력</b> — 채팅으로 전달하는 원본 사진 (1장 단위, Phase 1은 배치 처리 제외)</li><li><b>출력</b> — <code>원본파일명_corrected.jpg</code>, 6개 규칙이 모두 적용된 결과물 1장</li><li><b>처리 로그</b> — 원근보정 각도, 크롭 좌표, 리사이즈 비율 등 적용 내역을 결과물과 함께 텍스트로 남겨 추후 검수 가능</li></ul></div><div class="col"><div class="note">이 SPEC에는 「시스템 구성」 절이 없어, 같은 위치의 「입력/출력」까지 수록했습니다.</div></div></div>
+</section>
+<section class="card" id="p07">
+  <div class="card-h">
+    <div class="badge b-media">07</div>
+    <div>
+      <h3>블로그 콘텐츠 자동화 (AI 오피스 연동)</h3><div class="slug">07-blog-automation</div>
+      <p class="lead">AI 오피스에서 만든 콘텐츠·이미지를 받아 Claude가 블로그 원고(Word)를 작성하고, 네이버 블로그에 비공개로 등록까지 자동화하는 서비스입니다. 로그인과 최종 공개 전환은 사람이 직접 수행합니다.</p>
+      <div class="tags"><span class="tag t-media">콘텐츠 · Claude in Chrome</span><span class="tag t-media">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">입력</div><div class="v">AI 오피스 텍스트 + 이미지</div></div><div class="fact"><div class="k">중간 산출</div><div class="v">Word(.docx) 원고</div></div><div class="fact"><div class="k">등록 상태</div><div class="v">네이버 블로그 <b>비공개</b></div></div><div class="fact"><div class="k">사람이 하는 일</div><div class="v">로그인 · 최종 공개 전환</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>담당자가 AI 오피스에서 만든 콘텐츠 원본 + 이미지를 Claude에게 전달</li><li>Claude가 이를 바탕으로 블로그 게시용 원고를 Word 파일로 작성</li><li>Claude가 브라우저 자동화로 네이버 블로그 글쓰기 화면에 제목·본문·이미지를 채우고 <b>비공개</b>로 등록</li><li>담당자가 비공개 글을 최종 검수한 뒤 직접 공개로 전환</li></ul></div><div class="col"><h4>처리 흐름</h4><ul><li><b>1. 콘텐츠 입력</b> — AI 오피스 산출 텍스트 + 이미지를 담당자가 Claude에게 전달</li><li><b>2. 원고 작성</b> — 전달 내용을 정리해 블로그 원고(.docx) 생성. 제목·본문·이미지 삽입 위치 포함</li><li><b>3. 네이버 블로그 접근</b> — 브라우저로 글쓰기 페이지 접근<ul><li>미로그인 시 담당자에게 직접 로그인 요청. <b>아이디·비밀번호는 Claude가 입력하지 않습니다.</b></li><li>로그인된 세션에서만 다음 단계 진행</li></ul></li><li><b>4. 비공개 등록</b> — 제목·본문·이미지를 에디터에 채우고 공개 범위를 <b>비공개</b>로 설정해 저장</li><li><b>5. 최종 검수 및 공개</b> — 담당자가 확인 후 직접 공개로 전환 (Claude는 공개 전환을 수행하지 않음)</li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>입력</b> — AI 오피스 산출물(텍스트 콘텐츠 + 이미지 파일), 담당자가 채팅으로 전달</li><li><b>원고 생성</b> — Claude + docx 스킬로 Word 파일 작성</li><li><b>블로그 자동화</b> — Claude in Chrome(브라우저 확장)으로 네이버 블로그 글쓰기 페이지 조작<ul><li>로그인 상태 확인 → 미로그인 시 담당자에게 로그인 요청</li><li>제목/본문/이미지 자동 입력</li><li>공개 범위 ‘비공개’ 지정 후 저장</li></ul></li><li><b>검수/공개</b> — 담당자가 네이버 블로그에서 직접 확인 후 공개 전환 (수동)</li></ul></div></div>
+</section>
+<section class="card" id="p08">
+  <div class="card-h">
+    <div class="badge b-review">08</div>
+    <div>
+      <h3>홈페이지 변경사항 트래킹 자동화</h3><div class="slug">08-homepage-change-tracker</div>
+      <p class="lead">자사·타사 홈페이지를 매일 자동으로 모니터링해 과거 데이터와 비교하고, 변경 여부에 따라 결과를 담당자에게 메일로 발송하는 서비스입니다. 자사 홈페이지는 오탈자·휴먼 에러 검수, 타사 홈페이지는 업데이트 동향 파악을 목적으로 합니다.</p>
+      <div class="tags"><span class="tag t-review">모니터링·검수 · AI오피스 크롤링</span><span class="tag t-review">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">주기</div><div class="v">매일 지정 시각</div></div><div class="fact"><div class="k">비교 대상</div><div class="v">직전 스냅샷(콘텐츠 또는 스크린샷)</div></div><div class="fact"><div class="k">변경 시</div><div class="v">PPT 보고서 + 첨부 메일</div></div><div class="fact"><div class="k">변경 없을 시</div><div class="v">‘이상없음’ 메일</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>매일 수작업으로 홈페이지를 확인하지 않아도 변경 여부를 자동 파악</li><li><b>자사</b> — 업데이트 시 오탈자·휴먼 에러를 놓치지 않도록 검수</li><li><b>타사</b> — 경쟁사·관계사 홈페이지 업데이트를 추적해 동향 파악</li></ul></div><div class="col"><h4>처리 흐름</h4><ul><li><b>1. 모니터링 요청</b> — 매일 지정 시각, AI오피스에 등록된 홈페이지 목록별 모니터링(크롤링) 요청</li><li><b>2. 데이터 비교</b> — 크롤링 결과를 직전 저장된 과거 데이터와 비교</li><li><b>3. 변경 없음</b> — ‘이상없음’ 메일 발송</li><li><b>4. 변경 있음</b> — 변경 위치를 표기한 PPT 보고서를 작성하고 첨부해 메일 발송<ul><li>자사 — 오탈자·휴먼 에러 여부를 함께 검수해 코멘트 표기</li><li>타사 — 업데이트 내용을 트래킹해 동향 파악 코멘트 표기</li></ul></li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>홈페이지 목록 관리</b> (담당자가 시트에서 관리)<ul><li><code>구분(자사/타사) | 홈페이지명 | URL | 사용여부 | 담당자 | 비고</code></li></ul></li><li><b>모니터링(크롤링)</b> — AI오피스에 홈페이지별 크롤링을 요청하고 결과를 전달받음</li><li><b>과거 데이터 저장</b> — 홈페이지별 최근 수집 결과(콘텐츠 또는 스크린샷)를 스냅샷으로 보관</li><li><b>비교 로직</b> — 최신 수집 결과와 직전 스냅샷을 비교해 변경 여부·변경 위치 판정</li><li><b>보고서 생성</b> — 변경 발생 시 변경 위치를 표기한 PPT 생성 (Claude + pptx 스킬)</li><li><b>메일 발송</b> — 결과에 따라 ‘이상없음’ 또는 ‘변경사항 발견 + 보고서 첨부’ 메일 발송</li></ul></div></div>
+</section>
+<section class="card" id="p09">
+  <div class="card-h">
+    <div class="badge b-collect">09</div>
+    <div>
+      <h3>네이버 브랜드검색(브검) 모니터링 자동화</h3><div class="slug">09-naver-brand-search-monitor</div>
+      <p class="lead">등록된 브랜드 키워드에 대해 네이버 통합검색의 ‘브랜드검색’ 영역을 매일 자동으로 크롤링하고, 이전 수집 결과와 비교해 변경사항이 있을 때만 결과와 이미지를 누적 기록하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-collect">모니터링 · Apps Script</span><span class="tag t-collect">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">주기</div><div class="v">매일 08:00</div></div><div class="fact"><div class="k">판정 기준</div><div class="v">소재 콘텐츠 해시 비교</div></div><div class="fact"><div class="k">제외</div><div class="v">‘브랜드 SNS 소식’ 탭 영역</div></div><div class="fact"><div class="k">이미지</div><div class="v">Google Drive 저장 → 시트에 링크</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>수동 확인 없이 브랜드검색 노출 여부와 소재 현황을 매일 자동 파악</li><li>소재(이미지·카피·링크) 변경, 운영 중단, 신규 운영 시작 시점을 놓치지 않고 기록</li><li>변경이 없는 날은 중복 기록하지 않아 시트를 깔끔하게 유지</li></ul></div><div class="col"><h4>핵심 기능 요약</h4><ul><li><b>브랜드 키워드 기반 자동 크롤링</b> — 키워드 관리 탭을 순회하며 통합검색 결과 조회</li><li><b>브랜드검색 영역 식별</b> <code>brand_search</code><ul><li>통합검색 결과에서 브랜드검색 광고 영역만 식별</li><li>같은 영역 내 ‘브랜드 SNS 소식’ 탭 콘텐츠는 모니터링·비교 대상에서 제외 (기본 탭만 대상)</li></ul></li><li><b>운영 여부 판정</b> — 영역이 없으면 <b>미운영</b>, 있으면 <b>운영중</b>으로 판정 후 소재 정보 추출</li><li><b>변경 감지 및 누적 기록 (핵심 로직)</b> — 타이틀/카피·이미지 URL·링크 URL로 콘텐츠 해시를 만들어 직전 결과와 비교<ul><li><b>신규 등록</b> (첫 수집, 운영중) → 결과 누적 + 이미지 추출·저장</li><li><b>변경 감지</b> (해시가 직전과 다름, 운영중) → 결과 누적 + 이미지 추출·저장</li><li><b>동일</b> (해시 일치) → 새 행을 추가하지 않고 건너뜀 (중복 방지)</li><li><b>미운영 전환</b> (직전 운영중 → 이번 영역 없음, 또는 첫 수집부터 미운영) → ‘미운영’ 표기만, 이미지 추출 없음</li></ul></li><li><b>이미지 추출 (기본 동작)</b> — 신규/변경 건은 소재 이미지를 다운로드해 Google Drive에 저장하고 시트에 Drive 링크 기록</li><li><b>키워드 관리</b> — 담당자가 시트에서 직접 브랜드 키워드 추가·비활성화</li></ul></div><div class="col"><h4>시스템 구성</h4><ul><li><b>Apps Script 수집 스크립트</b><ul><li>시간 기반 트리거로 매일 08:00 실행</li><li><code>UrlFetchApp</code>으로 통합검색 HTML을 조회하고 <code>brand_search</code> 영역만 파싱</li><li>브랜드 SNS 소식 탭 영역은 별도 블록으로 판별해 파싱 대상에서 제외</li></ul></li><li><b>키워드 관리 탭</b> (담당자 입력)<ul><li><code>사용여부 | 브랜드명(검색키워드) | 등록일 | 비고</code></li></ul></li><li><b>브랜드검색 모니터링 탭</b> (누적 결과)<ul><li><code>수집일시 | 키워드 | 운영여부(운영중/미운영) | 상태(신규/변경/미운영전환) | 타이틀·카피 | 이미지링크(Drive) | 원문 링크 | 콘텐츠해시</code></li><li>동일 키워드의 가장 최근 행이 ‘현재 상태’이며, 변경이 없으면 새 행이 추가되지 않음</li></ul></li><li><b>로그 탭</b><ul><li><code>실행일시 | 대상키워드수 | 신규건수 | 변경건수 | 미운영전환건수 | 동일(스킵)건수 | 오류수 | 오류내용</code></li></ul></li></ul></div></div>
+</section>
+<section class="card" id="p10">
+  <div class="card-h">
+    <div class="badge b-media">10</div>
+    <div>
+      <h3>MOU 현수막 디자인 제작·추출 자동화</h3><div class="slug">10-mou-banner-generator</div>
+      <p class="lead">Canva의 지정 템플릿(MOU 체결식 현수막)에 업체별 변경요소(로고·업체명·장소명·타이틀)를 자동 반영하고, 인쇄용 규격으로 다운로드까지 자동 처리하는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-media">디자인 · Canva 자동화</span><span class="tag t-media">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">처리 단위</div><div class="v">업체 1건 = 폴더 1개</div></div><div class="fact"><div class="k">템플릿</div><div class="v">Canva 지정 디자인 (레이아웃 고정)</div></div><div class="fact"><div class="k">출력 규격</div><div class="v">PDF · CMYK · 재단선 포함</div></div><div class="fact"><div class="k">교체 요소</div><div class="v">로고 · 업체명 · 장소명 · 타이틀</div></div></div>
+  <div class="cols"><div class="col"><h4>목적</h4><ul><li>MOU 체결 때마다 반복되는 ‘현수막 템플릿에 업체 정보 채워 넣기 → 인쇄용 PDF로 내보내기’ 수작업을 자동화</li><li>사용자는 업체별 입력 파일(로고, 텍스트 정보)만 폴더에 넣고, 템플릿 반영·다운로드 설정은 자동 처리</li></ul></div><div class="col"><h4>사용 템플릿</h4><ul><li>Canva 디자인 — <code>canva.com/design/DAHSPWh2P6c/…/edit</code></li><li>레이아웃·폰트·색상 등 디자인 요소는 <b>고정</b>이며, 아래 4개 변경요소만 교체</li></ul></div><div class="col"><h4>변경요소 (템플릿 내 교체 대상)</h4><ul><li><b>업체로고</b> — 상대 업체 로고 이미지<ul><li>템플릿의 로고 자리에 이미지로 교체</li></ul></li><li><b>업체명</b> — <code>{업체명} + 라온시큐어㈜</code><ul><li>‘라온시큐어㈜’는 고정 문자열, 업체명만 입력값으로 채움</li></ul></li><li><b>장소명</b> — 체결식 장소, 텍스트 교체</li><li><b>타이틀</b> — 행사/MOU 타이틀 문구, 텍스트 교체</li></ul></div><div class="col"><h4>입력 데이터 구조 (파일·폴더 인식 규칙)</h4><ul><li><b>업체 1건 = 폴더 1개</b> — 폴더명과 폴더 내부 파일을 인식해 변경요소를 채움<ul><li><code>input/{업체명}/logo.(png|jpg|svg)</code> — 업체로고 원본 1개</li><li><code>input/{업체명}/info.txt</code> (또는 <code>info.json</code>) — 업체명 · 장소명 · 타이틀</li></ul></li><li><b><code>info.txt</code> 예시</b><ul><li><code>업체명: (주)예시테크</code></li><li><code>장소명: 라온시큐어 본사 대회의실</code></li><li><code>타이틀: (주)예시테크 - 라온시큐어㈜ 업무협약(MOU) 체결식</code></li></ul></li><li>폴더명은 <b>식별용</b>이며 실제 반영 텍스트는 <code>info.txt</code> 값을 우선 (불일치 시 <code>info.txt</code> 기준)</li><li><code>logo</code> 파일이 없거나 필수 항목(업체명/장소명/타이틀)이 비면 <b>해당 폴더는 처리하지 않고</b> 누락 항목을 알림</li></ul></div><div class="col"><h4>처리 흐름</h4><ul><li><b>1. 입력 인식</b> — <code>input/{업체명}/</code> 폴더를 스캔해 로고 파일 1개 + <code>info.txt</code> 텍스트 3항목을 읽음</li><li><b>2. 템플릿 반영</b> — 지정 Canva 디자인을 열어 4개 변경요소(로고 이미지, 업체명+라온시큐어㈜, 장소명, 타이틀)를 교체</li><li><b>3. 다운로드 추출</b> — 아래 설정으로 내보내기 실행<ul><li>파일 형식 — PDF (인쇄용)</li><li>색상 프로필 — CMYK</li><li>재단선 및 여백 — 포함</li><li>페이지 — 모든 페이지 병합(단일 PDF 파일)</li></ul></li><li><b>4. 저장</b> — 결과 PDF를 <code>output/{업체명}_MOU현수막.pdf</code>로 저장</li></ul></div><div class="col"><h4>출력</h4><ul><li><b>결과물</b> — 업체별 인쇄용 PDF 1개 (<code>output/{업체명}_MOU현수막.pdf</code>)</li><li><b>처리 로그</b> — 어떤 입력값(로고 파일명, 업체명/장소명/타이틀 텍스트)이 반영됐는지 결과물과 함께 남겨 검수 가능</li></ul></div><div class="col"><div class="note">이 SPEC에는 「시스템 구성」 절이 없어, 같은 위치의 「출력」까지 수록했습니다.</div></div></div>
+</section>
+<section class="card" id="p11">
+  <div class="card-h">
+    <div class="badge b-data">11</div>
+    <div>
+      <h3>2026 컨퍼런스 데이터 대시보드</h3><div class="slug">11-conference-dashboard</div>
+      <p class="lead">담당자가 구글시트에 직접 기입해 온 2026년 보안 컨퍼런스 참가 검토 데이터를, 검색·조회 가능한 대시보드로 보여주는 서비스입니다.</p>
+      <div class="tags"><span class="tag t-data">대시보드 · Sheets API(읽기 전용)</span><span class="tag t-data">SPEC 초안</span></div>
+    </div>
+  </div>
+  <div class="facts"><div class="fact"><div class="k">갱신</div><div class="v">수동 Run (자동 스케줄 없음)</div></div><div class="fact"><div class="k">데이터 소스</div><div class="v">구글시트 3개 탭</div></div><div class="fact"><div class="k">특이점</div><div class="v">셀 배경색 = 상태값</div></div><div class="fact"><div class="k">성격</div><div class="v">조회 전용 — 시트 쓰기 없음</div></div></div>
+  <div class="cols"><div class="col"><h4>목적 · 사용자</h4><ul><li>라온시큐어가 참가/검토 중인 2026년 보안 컨퍼런스 현황과, 같은 행사의 경쟁사 참가 규모를 한 화면에서 검색·비교</li><li>데이터 기입은 담당자가 구글시트에서 직접 수행, 대시보드는 시트를 읽어 보여주는 <b>조회 전용</b> 화면 (시트로 다시 쓰지 않음)</li><li>신규 행사를 웹에서 자동으로 찾아오는 기능은 다루지 않음 — 그 역할은 <code>01-conference-collector</code>가 담당</li><li><b>사용자</b> — 라온시큐어 마케팅팀: 연간 참가 계획 수립, 예산 검토, 경쟁사 동향 파악</li></ul></div><div class="col"><h4>데이터 흐름</h4><ul><li>구글시트 3개 탭 (담당자 수기 기입)</li><li>↓ <b>수집(Run)</b> — 수동 트리거로 시트 값 + 셀 배경색을 읽어 캐시 생성</li><li>↓ 정규화된 캐시 데이터 → 검색조건 필터링</li><li>→ <b>화면 1</b> 2026년 주요 보안 행사 리스트 / <b>화면 2</b> 2026 컨퍼런스 경쟁사 현황</li><li>‘수집(Run)’은 자동 스케줄이 아니라 <b>사용자가 갱신 시점을 통제하는 수동 실행</b>이 기본 (시트 수정 후 Run을 눌러야 반영)</li></ul></div><div class="col"><h4>데이터 소스 — 구글시트 3개 탭</h4><ul><li><b>탭 1 · 2026 컨퍼런스_라온 참가(검토안)</b> <code>gid=688518476</code> — 라온이 참가했거나 검토 중인 모든 행사<ul><li>컬럼: NO · 분류(시큐업/솔루션/서비스/메타데미) · 행사명 · 주최/주관 · 참여 이력(O/-/미참) · 참가신청·품의·결과보고서 · 형태(세미나/전시부스/복합) · 비용 · 방문자수 · 라온 참관객 · 참관객 1인당 비용 · 참가자 세그먼트 · 세션 상세 · 일정/장소 · 인입 경로 · 비고</li><li><b>행 배경색 = 참가 상태.</b> 별도 상태 컬럼이 없어 수집 시 배경색을 반드시 함께 읽어 정규화해야 함</li><li><code>#ff8400</code> 자사 행사 · <code>#ff9900</code> 참가 완료 · <code>#fff2cc</code> 참가 예정(일정 대기) · <code>#ead1dc</code> 참가 예정(행사 취소)</li></ul></li><li><b>탭 2 · 2026 컨퍼런스 전체</b> <code>gid=1815020362</code> — 라온 참가 여부와 무관한 시장 전체 목록<ul><li>컬럼: NO · 분류 · 행사명 · 형태 · 비용 · 방문자수 · 일정 · 주최/주관 · 장소 · 비고</li><li>상단 안내 ‘별색처리 = 일정 미정’ → 탭1과 마찬가지로 배경색이 상태 정보를 담으므로 함께 수집</li><li>라온 참가 여부 컬럼이 없으므로, 화면 표시 시 <b>탭1과 행사명 기준으로 매칭</b></li></ul></li><li><b>탭 3 · 2026 컨퍼런스_경쟁사 현황(0518)</b> — 경쟁사 × 행사 매트릭스 (탭1·2와 행 구조가 다름)<ul><li>행 — 경쟁사명 (안랩, 지니언스, 아톤, 드림시큐리티 등)</li><li>열 — 행사명(+발표 형태 태그 + 주최), 마지막 열은 합계</li><li>셀 값 — 세션 발표자·발표 주제 또는 부스 형태(‘2개 조립부스’ 등). 미참가는 공백</li><li>합계 열 — 경쟁사별 총 참가 건수</li></ul></li></ul></div><div class="col"><h4>대시보드 화면</h4><ul><li><b>화면 1 · 2026년 주요 보안 행사 리스트</b> — 탭1 기본, 탭2와 토글해 ‘라온이 검토하지 않은 행사’까지 확장 조회<ul><li>검색 항목(중요도 순, 각 항목 필터·키워드 검색): ① 행사명 ② 주최 ③ 일정 ④ 장소 ⑤ 라온 참가여부(배경색→상태값: 자사행사/참가완료/일정대기/취소) ⑥ 참여형태 ⑦ 비용 ⑧ 방문자수 ⑨ 참가자 세그먼트</li><li>행사 카드·행에 <b>원본 배경색을 상태 배지로 유지</b>해 시트에서 보던 것과 동일하게 인지 가능해야 함</li></ul></li><li><b>화면 2 · 2026 컨퍼런스 경쟁사 현황</b> — 탭3 기반<ul><li>경쟁사 기준 조회 — 특정 경쟁사가 어떤 행사에, 어떤 형태(세션/부스)로, 어떤 주제로 참가했는지</li><li>행사 기준 조회 — 특정 행사에 어떤 경쟁사가 참가했는지, 라온 참가 여부(탭1 매칭)와 나란히 비교</li><li>경쟁사별 참가 건수 랭킹 (합계 열 활용)</li></ul></li></ul></div><div class="col"><h4>수집(Run) 방식</h4><ul><li>Google Sheets API(<b>읽기 전용 서비스 계정</b>)로 3개 탭 조회</li><li>셀 배경색이 필요하므로 <code>spreadsheets.get</code>에 <code>fields=sheets.data.rowData.values(formattedValue,effectiveFormat.backgroundColor)</code> 사용 — CSV export는 배경색을 포함하지 않음</li><li>‘Run’ 버튼을 누르면 최신 시트 값을 읽어 캐시(JSON)로 저장하고, 화면은 캐시만 읽어 렌더링</li><li>탭1·탭2는 행사명 기준으로 매칭해 ‘라온 참가 여부’를 탭2 항목에도 부가 정보로 합침</li></ul></div><div class="col"><div class="note">이 SPEC에는 「시스템 구성」 절이 없어, 같은 위치의 「수집(Run) 방식」까지 수록했습니다.</div></div></div>
+</section>
+<footer>
+<p><strong>Summation</strong> — <code>~/Desktop/myProject/Project</code> 하위 11개 <code>SPEC.md</code>의 첫 줄 ~ 「시스템 구성」 구간 정리본. 생성일 2026-08-13.</p>
+<p>04·06·10·11 SPEC에는 「시스템 구성」 절이 없어 같은 위치의 「데이터 구조」·「입력/출력」·「출력」·「수집(Run) 방식」까지 수록했습니다. 「기술 스택 요약」 이후 절(인증/보안 전략, Phase 개발 범위, 제외 범위)은 요청 범위 밖이라 제외했습니다.</p>
+<p>원문이 수정되면 이 파일도 다시 생성해야 합니다. 원문이 항상 기준입니다.</p>
+</footer></div></body></html>

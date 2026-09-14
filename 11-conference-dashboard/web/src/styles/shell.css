@@ -1,0 +1,49 @@
+/* 대시보드 껍데기 — 사이드바, 상단바, 로그인 화면 */
+.app { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
+
+.side {
+  background: var(--surface); border-right: 1px solid var(--line);
+  padding: 18px 14px; display: flex; flex-direction: column; gap: 20px;
+  position: sticky; top: 0; height: 100vh;
+}
+.brand { display: flex; flex-direction: column; gap: 3px; padding: 0 6px; }
+.brand b { font-size: 14.5px; font-weight: 700; letter-spacing: -.02em; }
+.brand span { font-size: 11px; color: var(--ink3); letter-spacing: .06em; }
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button {
+  all: unset; box-sizing: border-box; display: block; padding: 9px 10px; border-radius: 6px;
+  font-size: 13.5px; font-weight: 500; color: var(--ink2); cursor: pointer;
+}
+.nav button:hover { background: var(--surface2); color: var(--ink); }
+.nav button[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.side-foot {
+  margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--ink3);
+}
+
+.main { padding: 20px 24px 56px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.top p { margin: 4px 0 0; color: var(--ink3); font-size: 12.5px; }
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* 로그인·안내 화면 */
+.gate {
+  max-width: 460px; margin: 14vh auto; padding: 28px 26px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+}
+.gate h1 { font-size: 18px; }
+.gate .btn { align-self: flex-start; }
+.gate code, .empty code {
+  font-size: 12px; background: var(--surface2); border: 1px solid var(--line);
+  border-radius: 3px; padding: 1px 5px; margin: 0 2px;
+}
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .side { position: static; height: auto; flex-direction: row; align-items: center; gap: 14px; overflow-x: auto; }
+  .nav { flex-direction: row; }
+  .side-foot { display: none; }
+}

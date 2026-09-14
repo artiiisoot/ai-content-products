@@ -1,0 +1,29 @@
+/* 홈 — 요약 타일, 카드 두 단, 행사 줄 목록 */
+.home { display: flex; flex-direction: column; gap: 16px; }
+
+.strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.cell { background: var(--surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 5px; }
+.cell .k { font-size: 11.5px; color: var(--ink3); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.cell .v { font-size: 22px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.cell .v small { font-size: 12px; font-weight: 500; color: var(--ink3); margin-left: 3px; }
+.cell .sub { font-size: 11.5px; color: var(--ink3); }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.panel-h {
+  padding: 12px 15px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.panel-h h2 { font-size: 13.5px; font-weight: 600; }
+.panel-h .more { font-size: 12px; text-decoration: none; }
+
+.rows { display: flex; flex-direction: column; }
+.rows .row { display: flex; gap: 11px; padding: 11px 15px; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.rows .row:last-child { border-bottom: 0; }
+.rows .row .dot { width: 10px; height: 10px; margin-top: 4px; flex: none; }
+.rows .grow { flex: 1; min-width: 0; }
+.rows b { font-size: 13.5px; font-weight: 600; display: block; }
+.rows .meta { font-size: 11.5px; color: var(--ink3); margin-top: 2px; }
+.rows .cost { font-size: 12px; color: var(--ink2); white-space: nowrap; font-variant-numeric: tabular-nums; }

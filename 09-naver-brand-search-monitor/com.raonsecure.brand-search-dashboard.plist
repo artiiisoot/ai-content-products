@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.raonsecure.brand-search-dashboard</string>
+
+    <!-- /bin/bash를 직접 실행하면 bash에 "전체 디스크 접근" 권한을 따로 줘야
+         Desktop 아래 스크립트를 읽을 수 있다(실측: 매 부팅마다 Operation not permitted).
+         이미 권한이 부여된 /usr/bin/python3(주간 수집 plist에서 사용 중)를 책임 프로세스로
+         세우고 그 자식으로 bash를 띄우면 권한이 상속되어 추가 설정이 필요 없다. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>-c</string>
+        <string>import subprocess, sys; sys.exit(subprocess.call(["/bin/bash", "/Users/raon/Desktop/myProject/Project/09-naver-brand-search-monitor/toggle-server.command"]))</string>
+    </array>
+
+    <!-- 로그인할 때(=이 LaunchAgent가 로드될 때) 딱 1회 실행. 반복 스케줄이나
+         KeepAlive는 절대 넣지 않는다 — toggle-server.command는 토글이라
+         자동으로 재시작되면 켰다 껐다를 반복하게 된다. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- toggle 스크립트는 서버를 nohup 백그라운드로 띄우고 곧바로 끝난다. 이 키가 없으면
+         launchd가 잡 종료 시 프로세스 그룹 전체를 정리하면서 방금 띄운 서버까지 같이
+         죽인다(실측 확인됨) — 남겨두고 나가도록 명시한다. -->
+    <key>AbandonProcessGroup</key>
+    <true/>
+
+    <!-- 한글 로그가 깨지지 않도록 UTF-8 로케일 명시 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LANG</key>
+        <string>ko_KR.UTF-8</string>
+        <key>LC_ALL</key>
+        <string>ko_KR.UTF-8</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/raon/Desktop/myProject/Project/09-naver-brand-search-monitor/dashboard-autostart.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/raon/Desktop/myProject/Project/09-naver-brand-search-monitor/dashboard-autostart.err.log</string>
+</dict>
+</plist>

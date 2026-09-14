@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.raonsecure.brand-search-monitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/raon/Desktop/myProject/Project/09-naver-brand-search-monitor/collect.py</string>
+    </array>
+
+    <!-- 매주 월요일 09:00 (Weekday: 0=일 ~ 6=토, 1=월) -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 한글 로그가 깨지지 않도록 UTF-8 로케일 명시 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LANG</key>
+        <string>ko_KR.UTF-8</string>
+        <key>LC_ALL</key>
+        <string>ko_KR.UTF-8</string>
+        <key>PYTHONIOENCODING</key>
+        <string>utf-8</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/raon/Desktop/myProject/Project/09-naver-brand-search-monitor/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/raon/Desktop/myProject/Project/09-naver-brand-search-monitor/launchd.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

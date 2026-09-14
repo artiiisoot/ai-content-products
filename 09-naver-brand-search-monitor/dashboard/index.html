@@ -1,0 +1,1968 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>네이버 브랜드검색 모니터링</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background:#f5f5f5; margin:0; padding:24px; }
+  .container { max-width:1920px; margin:0 auto; }
+  h1 { font-size:18px; margin:0 0 20px; }
+  .day-section { margin-bottom:4px; border-left:4px solid #e0e0e0; border-radius:0 10px 10px 0; transition:border-color .15s ease; }
+  .day-section[open] { border-left-color:#3b4a9e; }
+  /* 날짜 섹션을 <details>/<summary>로 접고 펼친다 — 최신 날짜만 기본으로 펼쳐지고
+     (build_dashboard에서 첫 섹션에만 open 속성을 붙임), 과거 날짜는 접힌 채로 시작한다. */
+  .day-title {
+    display:flex; align-items:center; gap:10px;
+    margin:0; padding:14px 18px; border-radius:0 10px 10px 0;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08);
+    cursor:pointer; list-style:none; user-select:none;
+    transition:background .12s ease;
+  }
+  .day-title::-webkit-details-marker { display:none; }
+  .day-title:hover { background:#f7f8fc; }
+  .day-title-arrow {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    background:#eef0fb; color:#3b4a9e; font-size:12px;
+    transition:transform .15s ease;
+  }
+  .day-title-arrow::before { content:'▶'; }
+  .day-section[open] > .day-title .day-title-arrow { transform:rotate(90deg); }
+  .day-title-date { font-size:16px; font-weight:700; color:#222; }
+  .day-title-sub { font-size:12px; color:#999; font-weight:400; }
+  .day-title-count {
+    margin-left:auto; font-size:12px; font-weight:600; color:#3b4a9e;
+    background:#eef0fb; border-radius:1000px; padding:4px 10px; flex-shrink:0;
+  }
+  .day-section .brand-columns { margin-top:16px; padding:0 18px 4px; }
+  /* 브랜드 개수만큼 컬럼을 나눈다 (지금은 3개 → 3분할). 브랜드 컬럼 안에서는
+     thumb-cell을 위, body-cell을 아래로 세로(column) 정렬한다.
+     align-items 기본값(stretch)을 그대로 둬서 같은 행의 brand-col 높이가 전부 맞춰지게 한다. */
+  .brand-columns { display:grid; gap:16px; }
+  .brand-col { display:flex; flex-direction:column; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  /* brand-col 안에서 PC/Mobile 수집 결과를 전환하는 버튼(실측: 광고주가 PC/모바일
+     브랜드검색을 따로 켜고 끌 수 있어 둘의 내용이 다르다 — 소프트캠프/파수/마크애니는
+     모바일 브랜드검색 자체가 없음). */
+  .device-switch { display:flex; gap:4px; padding:16px; }
+  .device-btn { font-size:12px; padding:4px 10px; border:none; border-radius:1000px; background:#eee; color:#666; cursor:pointer; }
+  .device-btn.active { background:#333; color:#fff; }
+  .device-view { display:flex; flex-direction:column; flex:1; }
+  .device-view[hidden] { display:none; }
+  /* device-view 하단의 소재 전환 버튼([1][2]...) — 소재가 2개 이상일 때만(실측: 소프트캠프
+     PC). 버튼을 누르면 별도 블록이 추가되는 게 아니라 device-view 자리(이미지+필드
+     전체)가 그 소재의 화면으로 바로 바뀐다 — creative-panel이 그 자리를 채우는
+     실제 콘텐츠이고, creative-switch는 항상 하단에 고정된 채 어느 패널이 보일지만 정한다. */
+  .creative-switch { display:flex; flex-wrap:wrap; gap:4px; padding:16px; border-top:2px solid #eee; margin-top:auto; }
+  .creative-btn { font-size:12px; padding:4px 10px; border:none; border-radius:1000px; background:#eee; color:#666; cursor:pointer; }
+  .creative-btn.active { background:#333; color:#fff; }
+  .creative-panel { display:flex; flex-direction:column; }
+  .creative-panel[hidden] { display:none; }
+  /* 캡처 이미지마다 실제 비율이 달라 높이가 제각각이므로 썸네일 높이를 고정한다.
+     object-fit:contain이라 잘리지 않고 비율 그대로 축소돼 여백(레터박스)이 생길 수 있다. */
+  .thumb-cell { background:#eee; aspect-ratio: 1 / 1; overflow:hidden; flex-shrink:0; }
+  .thumb-cell img { width:100%; height:100%; object-fit:contain; display:block; cursor:zoom-in; }
+  .thumb-cell .none { display:flex; height:100%; align-items:center; justify-content:center; color:#999; font-size:14px; }
+  /* 모바일 2장 캡처(검색 직후/4초 후) 스와이프 — 네이티브 scroll-snap이라 터치 스와이프가
+     그냥 된다. 좌우 화살표는 마우스로 볼 때(스크롤 제스처 없이) 넘기기 편하라고 곁들인다. */
+  .swiper { position:relative; width:100%; height:100%; }
+  .swiper-track { display:flex; width:100%; height:100%; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; }
+  .swiper-track::-webkit-scrollbar { display:none; }
+  .swiper-track img { flex:0 0 100%; scroll-snap-align:start; }
+  .swiper-nav { position:absolute; top:50%; transform:translateY(-50%); width:24px; height:24px; border:none; border-radius:1000px; background:rgba(0,0,0,.4); color:#fff; font-size:14px; line-height:1; cursor:pointer; }
+  .swiper-prev { left:4px; }
+  .swiper-next { right:4px; }
+  /* thumb-cell 클릭 시 이미지 확대(라이트박스). 네이티브 <dialog>로 배경 dim/포커스 트랩을 공짜로 얻는다. */
+  .lightbox { border:none; padding:0; background:transparent; max-width:92vw; max-height:92vh; }
+  .lightbox::backdrop { background:rgba(0,0,0,.8); }
+  .lightbox img { display:block; max-width:92vw; max-height:92vh; object-fit:contain; cursor:zoom-out; }
+  /* 모바일 2장(스와이프) 카드를 확대할 때도 그대로 스와이프할 수 있게 라이트박스 안에
+     같은 .swiper 구조를 하나 더 둔다(.swiper-nav 클릭 처리는 기존 로직을 그대로 재사용).
+     1장뿐인 카드는 기존처럼 #lightbox-img 단일 이미지 경로를 그대로 쓴다. */
+  .lightbox-swiper { width:92vw; height:92vh; }
+  .lightbox-swiper[hidden] { display:none; }
+  .lightbox-swiper .swiper-track img { width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; cursor:zoom-out; }
+  .body-cell { padding:16px; }
+  /* row(배지+키워드)를 누르면 그 아래 field들이 펼쳐지는 아코디언 트리거 — 기본은
+     접힘(.fields[hidden]). 화살표는 day-section 아코디언과 같은 시각 언어를 쓴다. */
+  .row { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:6px; position:relative; padding-right:24px; cursor:pointer; }
+  .row-arrow { position:absolute; top:0; right:0; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; color:#999; font-size:12px; transition:transform .15s ease; }
+  .row-arrow::before { content:'▶'; }
+  .row.expanded .row-arrow { transform:rotate(90deg); }
+  .keyword { font-weight:600; font-size:14px; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:1000px; color:#fff; flex-shrink:0; }
+  .badge-new { background:#2f7d32; }
+  .badge-changed { background:#e08e0b; }
+  .badge-same { background:#9aa0a6; }
+  .badge-off { background:#c0392b; }
+  .meta { font-size:12px; color:#888; margin:6px 0; }
+  a.link { font-size:12px; }
+  .change-note { font-size:12px; color:#a3540a; background:#fff3e0; border-radius:6px; padding:6px 10px; margin:0 0 8px; }
+  /* 필드: 라벨을 위, 값을 아래로 세로 정렬 + 필드 사이 간격을 넉넉히 */
+  .field { display:flex; flex-direction:column; gap:4px; margin-bottom:16px; font-size:14px; }
+  .field-label { color:#888; font-size:12px; }
+  .field-label code { display:none; }
+  .field-empty { color:#bbb; }
+  .pill { display:inline-block; background:#eef2ff; color:#3b4a9e; font-size:12px; padding:2px 8px; border-radius:1000px; margin:0 4px 4px 0; }
+
+  /* 상단 바: 운영 중인 키워드 표시 + 새 키워드 입력 + 수동 수집 */
+  .topbar { display:flex; flex-direction:column; align-items:flex-start; gap:16px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #ddd; }
+  /* kw-status-group: 라벨(위) / 배지 묶음(아래)을 세로(column)로 정렬 */
+  .kw-status-group { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+  .kw-status-group-label { font-size:12px; color:#888; }
+  /* kw-status 배지들은 한 묶음으로 가로(row) 정렬 */
+  .kw-status-row { display:flex; flex-direction:row; flex-wrap:wrap; gap:8px; }
+  .kw-status { display:inline-flex; align-items:center; gap:6px; font-size:12px; background:#fff; border-radius:1000px; padding:6px 12px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .kw-status .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .kw-status-on .dot { background:#2f7d32; }
+  .kw-status-off .dot { background:#c0392b; }
+  .kw-status-pending .dot { background:#999; }
+  .kw-status em { font-style:normal; color:#888; }
+  .kw-delete { margin-left:2px; border:none; background:transparent; color:#bbb; font-size:14px; line-height:1; cursor:pointer; padding:0 2px; }
+  .kw-delete:hover { color:#c0392b; }
+  .kw-add, .manual-collect { display:flex; flex-direction:row; flex-wrap:nowrap; gap:6px; align-items:center; }
+  .kw-add input { font-size:14px; padding:8px 10px; border:1px solid #ccc; border-radius:6px; min-width:160px; }
+  .kw-add button, .manual-collect button { font-size:12px; padding:8px 12px; border:none; border-radius:6px; background:#333; color:#fff; cursor:pointer; }
+  .kw-add button:disabled, .manual-collect button:disabled { background:#999; cursor:default; }
+  .kw-add-status, .manual-collect-status { font-size:12px; color:#2f7d32; min-width:180px; }
+  .kw-add-status.error, .manual-collect-status.error { color:#c0392b; }
+
+  /* 화면 전환 탭 */
+  .tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .tab-btn { font-size:14px; padding:10px 18px; border:none; border-radius:6px; background:#e5e5e5; color:#555; cursor:pointer; }
+  .tab-btn.active { background:#333; color:#fff; }
+
+  /* 로그 히스토리 표 (수집 실행 이력 — 시간순 표 형태가 자연스러운 데이터라 table 사용) */
+  .logs-table { width:100%; border-collapse:collapse; background:#fff; font-size:12px; }
+  .logs-table th, .logs-table td { border:1px solid #eee; padding:8px 10px; text-align:left; }
+  .logs-table th { background:#f0f0f0; font-size:12px; color:#666; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>네이버 브랜드검색 모니터링 (2026-09-14 09:00:38 기준)</h1>
+
+<div class="topbar">
+  <div class="kw-status-group">
+    <span class="kw-status-group-label">운영 중인 키워드</span>
+    <div class="kw-status-row"><span class="kw-status kw-status-on"><span class="dot"></span>라온시큐어 <em>운영중</em><button type="button" class="kw-delete" data-kw="라온시큐어" title="라온시큐어 삭제">×</button></span><span class="kw-status kw-status-off"><span class="dot"></span>안랩 <em>미운영</em><button type="button" class="kw-delete" data-kw="안랩" title="안랩 삭제">×</button></span><span class="kw-status kw-status-on"><span class="dot"></span>파수 <em>운영중</em><button type="button" class="kw-delete" data-kw="파수" title="파수 삭제">×</button></span><span class="kw-status kw-status-on"><span class="dot"></span>지란지교시큐리티 <em>운영중</em><button type="button" class="kw-delete" data-kw="지란지교시큐리티" title="지란지교시큐리티 삭제">×</button></span><span class="kw-status kw-status-on"><span class="dot"></span>지니언스 <em>운영중</em><button type="button" class="kw-delete" data-kw="지니언스" title="지니언스 삭제">×</button></span><span class="kw-status kw-status-on"><span class="dot"></span>소프트캠프 <em>운영중 · 소재 2개</em><button type="button" class="kw-delete" data-kw="소프트캠프" title="소프트캠프 삭제">×</button></span><span class="kw-status kw-status-off"><span class="dot"></span>드림시큐리티 <em>미운영</em><button type="button" class="kw-delete" data-kw="드림시큐리티" title="드림시큐리티 삭제">×</button></span><span class="kw-status kw-status-on"><span class="dot"></span>수산아이앤티 <em>운영중</em><button type="button" class="kw-delete" data-kw="수산아이앤티" title="수산아이앤티 삭제">×</button></span><span class="kw-status kw-status-off"><span class="dot"></span>SGA솔루션즈 <em>미운영</em><button type="button" class="kw-delete" data-kw="SGA솔루션즈" title="SGA솔루션즈 삭제">×</button></span><span class="kw-status kw-status-on"><span class="dot"></span>모니터랩 <em>운영중</em><button type="button" class="kw-delete" data-kw="모니터랩" title="모니터랩 삭제">×</button></span><span class="kw-status kw-status-off"><span class="dot"></span>아톤 <em>미운영</em><button type="button" class="kw-delete" data-kw="아톤" title="아톤 삭제">×</button></span></div>
+  </div>
+  <div class="kw-add">
+    <input type="text" id="new-kw-input" placeholder="새 키워드 입력">
+    <button type="button" id="kw-add-btn" onclick="addKeyword()">키워드 추가</button>
+    <span id="kw-add-status" class="kw-add-status"></span>
+  </div>
+  <div class="manual-collect">
+    <button type="button" id="manual-collect-btn" onclick="runManualCollect()">지금 수동 수집 실행</button>
+    <span id="manual-collect-status" class="manual-collect-status"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button type="button" class="tab-btn active" data-view="dashboard" onclick="showView('dashboard')">대시보드</button>
+  <button type="button" class="tab-btn" data-view="logs" onclick="showView('logs')">로그 히스토리</button>
+</div>
+
+<div id="view-dashboard">
+
+<details class="day-section" open>
+  <summary class="day-title">
+    <span class="day-title-arrow"></span>
+    <span class="day-title-date">2026-09-14</span>
+    <span class="day-title-sub">수집</span>
+    <span class="day-title-count">1/11 브랜드 갱신</span>
+  </summary>
+  <div class="brand-columns" style="grid-template-columns: repeat(6, 1fr);">
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/라온시큐어/PC/20260907165003.png" alt="라온시큐어 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">라온시큐어</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">AI 보안·인증 플랫폼 기업</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">모두가 즐겁고 안전한 AI 세상 / 라온의 기술은 고객의 즐거움을 향합니다.</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">회사소개</span><span class="pill">도입가이드</span><span class="pill">브랜드캐릭터</span><span class="pill">제품찾기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">시큐업&amp;해커톤</span><span class="pill">AI 보안·인증</span><span class="pill">웹3·블록체인</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="pill">AI 신분증</span><span class="pill">AI 모의해커</span><span class="pill">AI 데이터라벨</span><span class="pill">AI 가드레일</span><span class="pill">AI 자율보안</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:03 · 최종확인: 2026-09-14 09:00:07</p>
+    <a class="link" href="https://ader.naver.com/v1/45Lt7isiYv7ImhmilUwgvStk4-8hBN7f-GQcdSk-Te6q_jHYaIznvUjJCWaeoZyHVe1JjY6BnDDeJRHg-iTIg6yZJCmerddaCy2pEVOaOfa11pM692Zl7f1KegFDIu9Px1F70-59fP9j_VW5lf88zHwfsa0APrdxgL52GXbKhU5CDj802zmd9vVj2xojvazl9DQKAKZr_XRPTY-FHy1DdtzpZq3OCSF12SYcgFVvpWJExkd31NC5-eJTFufAi8w80ty0EX4Gbadq9yCGUh8csY93yx5ZFX_0BR1jzFxj9hv-Lx5fvfLKhmxMcTzCwwd3sw3LjkWWeSpxVTvVPdCcNNKus0KW-wOJ2g2lIdtz9Fr3K15RuwmPPO7RYUo8U__lyhI3WExZYYhLbXikLAot69ABlzHWnb2ka3pVJpByh5tfbsVMDvp5bjjOX8g3fM4n?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><div class="swiper"><div class="swiper-track"><img src="../images/라온시큐어/Mobile/20260907165008_2.png" alt="라온시큐어 소재"><img src="../images/라온시큐어/Mobile/20260907165008.png" alt="라온시큐어 소재"></div><button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button><button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button></div></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">라온시큐어</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value">AI 보안·인증 플랫폼기업</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value">라온의 기술은 / 고객의 즐거움을 향합니다.</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="pill">시큐업&amp;해커톤</span><span class="pill">AI 신분증</span><span class="pill">AI 모의해커</span><span class="pill">AI 라벨러</span><span class="pill">AI 가드레일</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:08 · 최종확인: 2026-09-14 09:00:12</p>
+    <a class="link" href="https://ader.naver.com/v1/XmkJrrb1U56nvOXuo45-zsxDqO34zJSBNrOtYShTLb-NTI5jkxVvgV71M4TT115oekhDRFYKOLF8ZTq_TjsnGZY1VJUmiO8VxjcYecQlkg6ywO_F6e4Cpl_MGjuePBBZtXdhh4Xh39aROSIpbYciVffYH13Y0Io9X1CgqGwIIJrvKaS8etkSNkql_R-ZLPP11qtgnfEPNKCRYCIOdFw22HqkVpAexz-TzaAT349q6NFbRV4qskIWW6wNGoZTzBZyOceK58VocYbsuAe6T7bhGAQs2cZXGuuyxf_2Hs7bHNcJY9ncSEuL2Ut26AWCfRY20lWquqUh3UEDon3b7xMVqSk_OecOUeqRPRU7OI5-KsQC6QLmAT3XvNdc-ApiLTzCgTPFU5LwF8k3S1w4p7rnTjqkiT-si_mYUAP3wkYIFasgMJ2g2Tn0_DLgC6jCIR_j?c=mnaver.search.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">안랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:08 · 최종확인: 2026-09-14 09:00:13</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">안랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:09 · 최종확인: 2026-09-14 09:00:13</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/파수/PC/20260907165010.png" alt="파수 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">파수</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">AI·데이터·보안의 체계적 실행</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">성과로 이어지는 지속 가능한 AI 혁신 / Make AI Easy and Simple</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">AI</span><span class="pill">Data</span><span class="pill">Security</span><span class="pill">문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">기업형 LLM</span><span class="pill">AI데이터 관리</span><span class="pill">HyperDRM</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="pill">AI DLP</span><span class="pill">N2SF 분류</span><span class="pill">화면 보안</span><span class="pill">출력물 보안</span><span class="pill">악성메일 훈련</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:10 · 최종확인: 2026-09-14 09:00:15</p>
+    <a class="link" href="https://ader.naver.com/v1/_Mi1B2iGJ6og7WGMhKTKONnyto3TtMEfBFpmlibZTpnRg1D95GPlhK0Gd2ZjRe1ahzASB4bpKjWhAPmsKmxp4SIcNg7EQHMfLzHczKLIf6ZJqkAgBv1Ho4BOMhO2b2_6kj4cKYN38AGtMgA0eWs4poFGw4JKdHGdoCI0yqRqSlpMGnufPXDx9Pny7bYnQQo74PV5COvn80Q3SFTcj4JQb9o2U5YsdvSLX37-XZHI7HaixZtH8kSM6tQ6J3jRPbDnkHESrR4MICvQ2u-sP9iV_A61GWKhBmYE6OwgbTGI16M9WCTm_jChicKEkhzElrIbMdgmQ0oN82PRavgWFLvhOB9govoEU15nrzLTrYKax6HAxhOPnio8mcDqphqL-rKjGzpoWIOST51G9-Eauu3jfIkWpqjT66HYY8S7F8imSiR3-BWJdGBm7UOH8Ut02-dOJO3t5kpfhCQ5NcbdThSx_hpVfVFPeyMIMstZTcC49XWAPhZ9uR1TF0LV6UHTNp-X?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">파수</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:11 · 최종확인: 2026-09-14 09:00:16</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/지란지교시큐리티/PC/20260907165012.png" alt="지란지교시큐리티 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">지란지교시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">정보보호부문 4대 공시 항목 준비</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">정보보호 투자·인력·인증·활동 현황 공시 / 지란지교시큐리티 제품으로 핵심수치 공시가능</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">지란지교시큐리티 소개</span><span class="pill">뉴스</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">신청하기</span><span class="pill">점검하기</span><span class="pill">다운로드</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:12 · 최종확인: 2026-09-14 09:00:17</p>
+    <a class="link" href="https://ader.naver.com/v1/as27SUofxiTGpEHq0mE0hEl97OjlQczk4XeY2h86r-NLHLy3j55Xd4Ep4Rz6l9eKzDEMAKC3RL03jnzwc8b5w1pzKAtfKSzVdZNsYlcxeNI867JCkvEw8acE17nBfzixZzT5YgWHDsCsUmQJmU3rCDh6vLkiJmQbBo0452QytG1QA4Gzr0159EjeQxoYdtD11yB2zkCIYpT2l05zrNbvhHEjaXAfttJFd25ojlvDtv3WVFk-BR2BoCOIleCfL2QjdD0UIHL97eU0wmeIqY_2HeNg2Vin3nvo9H94Y1--lnNVM7RluoKR54rEHuOn-BUY9zRqBpRg9nqzHtmblSd6M6JCnLsfdPazwpFeRwHTsC-yKuXEcRrnZWW9Q9kUPQPwjMJmnOru6U7OELRJEy8b6FMZee5RqtJDXp9YiOIGGVb3UXRZWuyUj1e5ec6qDpCqeMrso2kWvysW4Wp3QNOOtx3l3_eTBUqJrveTSCORHF_DKaeMpN2eGFbUMCpR8nTAHZL3ORmRC3p2EwezNjlNahS_fMRvdebRb5TgKHRnsqbQhbMEAFGpcY17j5QAbdNvQwdWy7_yoMePmdiSV9kfCwtyn_ZIe7EGgxG6TwSgvcZNSXTd1iyVWlNDxjXrJWx9?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">지란지교시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:13 · 최종확인: 2026-09-14 09:00:18</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/지니언스/PC/20260907165014.png" alt="지니언스 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">지니언스</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">탐지는 정확하게 대응은 확실하게</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">AI 시대, 더욱 정교해지는 사이버 공격 / 지니언스와 함께 빈틈없이 대응하세요.</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">지니언스 소개</span><span class="pill">제품 소개서</span><span class="pill">지역별 파트너</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">자율형 SOC</span><span class="pill">AI 가시성</span><span class="pill">IT 자산 관리</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:14 · 최종확인: 2026-09-14 09:00:19</p>
+    <a class="link" href="https://ader.naver.com/v1/q5DaOQAUsCpQ3xeYtBLkF91Xun0Lemeh-My24KAHcgUGLzm-is3il_AqoOTAB7vjJuJl8XmDTqc1VOi-LIoKOY060KLhnpKrJvlBM1_GNgNOpLpxWntd0u326LBP0nPtxnl303AYracdGdXVjRjLozziEYv5qx0sjKlYqCv6m-EJNo18T8-GCw8zA786C1ESdYPB6BP0hgDVEITPDF5ghWliSwNgIKARVE8nTZMtyWOCwX89Y-X8peHmFIJiZT2Zp6MtzJlKdEVsOMFgj-BeLO6FyZc_L72zjkK44X_-kdPQpGZGhzOqFi6anVEjHNiD4cDtN4Zqd5bE0pCn2wHuPZxGAwkZorwB5p0GHY7NUaFRhS1x1AIpJVbZM1NwZbYTAs7nE2I6KfI2CeItjQQ1cg==?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><div class="swiper"><div class="swiper-track"><img src="../images/지니언스/Mobile/20260914090024_2.png" alt="지니언스 소재"><img src="../images/지니언스/Mobile/20260914090024.png" alt="지니언스 소재"></div><button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button><button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button></div></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">지니언스</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value">통합 보안 플랫폼 지니언스</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value">더욱 정교해지는 사이버 공격 / 지니언스와 빈틈없이 대응하세요</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-14 09:00:24 · 최종확인: 2026-09-14 09:00:24</p>
+    <a class="link" href="https://ader.naver.com/v1/O5vtbitUcJQXZpSpE6rg6ypYshXO8WejDuxUJWgKsgeUTilb0E3JOVxNUvaNYELdrllHEca6fZyJM8f_T19gXQ_p_q3IWey-3lRtprQwLIieavgUALuHNeiGX9M0Zj9J6LfH2sw5U8ef1qS6PFasalzlVUB6Ol4YSpfAgRaOGjzr1PY2kp-Cj5rXYxniwlRLYmGc-r8zxnxYrpZ02LPfvTWlBQu7yWn8BuHFBMTHpDatn9TU_8grLVyBqFjndA-Ic-pH1xQn1wDrJxRPeCw4eKoB0gntvPL-XGB2LnovwRcdnowZlxmGLUhBNCEld2HfzjnBQH7a_07CTT8nS7egiJl71lx6hQCJtWlHfrDEX-JYcrLZBHZWDwtpvkfdcaUvd1ZuObcufNa5ZALuOUdGKw==?c=mnaver.search.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC"><div class="creative-panel" data-creative="1" hidden>
+  <div class="thumb-cell"><img src="../images/소프트캠프/PC/20260907173731.png" alt="소프트캠프 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">소프트캠프 / 소재 2개</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">웹서비스를 위한 RBI 보안 접속</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">RBI 기술로 WebAPI 변조를 차단하고 / 공격자와 웹 서버를 격리해 웹 보안 실현</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">소프트캠프 공식 웹사이트</span><span class="pill">문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">서비스 소개</span><span class="pill">Insights</span><span class="pill">도입 문의</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 17:37:31 · 최종확인: 2026-09-07 17:46:22</p>
+    <a class="link" href="https://ader.naver.com/v1/1lUIG-U3KrVsrluw_by01OHibPsb9M6UpLRrztuXER9XXWpe4-iKCbrDg_6QNOzcuqLX_2979-6uM5lGKjad3Cn2IXVc-9jtnK3C6E6YR42YmOcXGjXCzBWLIa7VppeAXN0dz10LKWi43i-L2xExXbwCDVUIe-_oQNYCISA8zFXowFZnRVZctjq-9oMCAc8mRMBj6SI7x9KeCSLXe-zlYSL4D-TvTjB4uU2003HoIhtUrcbOi4R0wi6aQnTwY2Dh35a4cqBp-XrYODhuJRj3YHrcCT_uSV1XgMPHxxfnGPgGOsIgTIC7Q3iF0O-5tYDeHaFC9BtrXeHKxwjnEi19Ll5r5KIROF7iNjHczpKq5hTK28yVsQzUihX7SeOqg2cNh8RcVCx75JVL9SRUfLufKjAouT9ZHRlrF_9XleGA7hevKAAysIwcLeeSsvO3bGYznkdGTjFkBVkhXBuLlumvemETsmLt6avekeUctyJRs7w=?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div><div class="creative-panel" data-creative="2">
+  <div class="thumb-cell"><img src="../images/소프트캠프/PC/20260907181006.png" alt="소프트캠프 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">소프트캠프 / 소재 2개</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">클라우드 환경의 통합 계정관리</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">조건과 상황에 따라 신원을 지속 검증하고 / 접근권한을 관리해 제로 트러스트 보안 실현</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">소프트캠프 공식 웹사이트</span><span class="pill">문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">서비스 소개</span><span class="pill">주요 기능</span><span class="pill">데모 요청</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 18:10:06 · 최종확인: 2026-09-14 09:00:25</p>
+    <a class="link" href="https://ader.naver.com/v1/Jxuhis80Cg92MBWM9xDzFnT-cex2AbHoIifGXIatHnKzhAdPmbg8pePUJcDehRq6y6vg49TtNInwunpseJKGO4v4wQ51h-d11-grACo1LAdaw5y_k250EHiU08c04BpHGppNts3rf5w51DuY7WXfDb5242j_PHVBk7BBPxxjhdyJCeqUgHHgx7BsrAxwJnmbGZEkIaTl_dcLOM--d-oaj2DaTY0bquRcmZwJ7LdO09OWo0B9dLBLK4cUjMGtCOMEkBYIsdCJyQ-m5hjnyGj_y0X6BYwyCV3rL2UQhumniMDb0uT63set4e9T1ETvNCpoyaDnf14wcqptgvu1b1A1pNlaKP80TIXoBHo3whPBsV4KvcvORrkkM1-LmbxyX24AlXe0MrCfRClszKIXhInDCAt6mbLvJRrMst2F4iQQ8KAm4JYQyV32a8_DeGLZ1sc1hCnNptwhNPHKHFU0zz3bcA==?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div><div class="creative-switch"><button type="button" class="creative-btn" data-creative="1">1</button><button type="button" class="creative-btn active" data-creative="2">2</button></div></div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">소프트캠프</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:21 · 최종확인: 2026-09-14 09:00:26</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">드림시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:22 · 최종확인: 2026-09-14 09:00:27</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">드림시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:22 · 최종확인: 2026-09-14 09:00:27</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/수산아이앤티/PC/20260907165024.png" alt="수산아이앤티 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">수산아이앤티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">28년차 종합 정보보호 전문기업</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">공공·기업·국방·금융/구축부터 유지보수까지 / 수산아이앤티만의 맞춤형 인터넷 보안솔루션</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">SSL가시성</span><span class="pill">웹차단</span><span class="pill">정보유출방지</span><span class="pill">AI보안</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">소개자료</span><span class="pill">제품문의</span><span class="pill">보안소식</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:24 · 최종확인: 2026-09-14 09:00:29</p>
+    <a class="link" href="https://ader.naver.com/v1/QAB6Kso6zt-KJ-cLTkOgZ39e-9Tri6sVde5nnM7Q84VtwKN_hQONg_ht7KqKebTVsKMKRgYGeIZUFfJ_Cv9zZ-8cV_kmEu-CO2fF0cR3mtInr5vYy2HI5uFXSBYywjkZ7A1srBVkHi89wKyglXut14smcWzm7gn6dQRtbSa6oI3Eyen8WP2xLSevtXPaG7jem8f9cAHwTuvQFiBVD6r1q1hyXoOK8TsccZU5J-ElENtAyuwE1SMFWnzP6MDxU9176c-bNE3cW6pjOPKNnYpW0nwITlRRwLhk-_K0TqQoSTr7BjRDLICRTocQJXfHX9-d?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><div class="swiper"><div class="swiper-track"><img src="../images/수산아이앤티/Mobile/20260907165029_2.png" alt="수산아이앤티 소재"><img src="../images/수산아이앤티/Mobile/20260907165029.png" alt="수산아이앤티 소재"></div><button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button><button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button></div></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">수산아이앤티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value">수산아이앤티</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value">공공·기업·국방·금융까지 / 고객의 정보 자산을 지킵니다</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:29 · 최종확인: 2026-09-14 09:00:34</p>
+    <a class="link" href="https://ader.naver.com/v1/LKZaxrwD5DJnoUtgX6zkLnE7XJjnNUt6RKd53EzH85CVQYnQ8Kl0tZoS6QuHFYJZ0S2WFSh44UcmC_ieJto5YwNXgEWrJKf6LNTPhxCuhQvoIijmap6ih6Q8Z3H1WdK5biGqQf5RRBttWkjEL1a5T3VFTHcC7ELAj4S_3scTVab7Fj09Rh_C4GnUscnVz3HSe4rv50-QHCn6qywW1_Mrh1Jbj64v4EWSzNeRy5AJ3XaT963pdp15B1JssfHJX-3mQnfZdjAGnE_MMvGGJZ-MkMrrpAQJgTeBisMpEozvB4mFFTbgXUEIP9H1bZdbmNjP?c=mnaver.search.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">SGA솔루션즈</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:29 · 최종확인: 2026-09-14 09:00:34</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">SGA솔루션즈</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:30 · 최종확인: 2026-09-14 09:00:35</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/모니터랩/PC/20260907165031.png" alt="모니터랩 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">모니터랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">파일 속 위협까지 차단하는 웹보안</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">WAAP+CDR 통합 솔루션으로 / 파일 기반 위협 원천 차단</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">아이온클라우드란?</span><span class="pill">WAAP 무료 트라이얼</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">WAAP</span><span class="pill">CDR</span><span class="pill">CDR문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:31 · 최종확인: 2026-09-14 09:00:36</p>
+    <a class="link" href="https://ader.naver.com/v1/liV43p2M1wL4k1pznMjk8L8hD2IGS6jY5laU2qUAbqx4KhJ4dZa7LZjsnnYOVjYxXGS6IuFwUNoXL1lesc-IFgmhmdyApk_rsqkDoAgDG-GLBen5RFEiEtlhU3uw9qgs3OaSLN_N-5Blkiqs3mBqx6j3qjfEexLLllf-RwdtwZut6nfeTYq6OU8WS85Y15Vk1QGYeEbb3_j2TAPx-6emYLX7WvVZjCJan69nUjQQCctfCv5KIwy0vFZJ_2Y0_ls_Wp1JYN0OwEpN9ZW74-to3RUXhoyP-Klith9ztDzcCIqf--ttfov4d2osRRgWX8qr?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">모니터랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:32 · 최종확인: 2026-09-14 09:00:37</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">아톤</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:33 · 최종확인: 2026-09-14 09:00:37</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-same">변경사항 없음</span><span class="keyword">아톤</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:33 · 최종확인: 2026-09-14 09:00:38</p>
+    
+  </div>
+</div>
+</div>
+
+  </div>
+</details>
+
+
+<details class="day-section">
+  <summary class="day-title">
+    <span class="day-title-arrow"></span>
+    <span class="day-title-date">2026-09-07</span>
+    <span class="day-title-sub">수집</span>
+    <span class="day-title-count">11/11 브랜드 갱신</span>
+  </summary>
+  <div class="brand-columns" style="grid-template-columns: repeat(6, 1fr);">
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/라온시큐어/PC/20260907165003.png" alt="라온시큐어 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">라온시큐어</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">AI 보안·인증 플랫폼 기업</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">모두가 즐겁고 안전한 AI 세상 / 라온의 기술은 고객의 즐거움을 향합니다.</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">회사소개</span><span class="pill">도입가이드</span><span class="pill">브랜드캐릭터</span><span class="pill">제품찾기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">시큐업&amp;해커톤</span><span class="pill">AI 보안·인증</span><span class="pill">웹3·블록체인</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="pill">AI 신분증</span><span class="pill">AI 모의해커</span><span class="pill">AI 데이터라벨</span><span class="pill">AI 가드레일</span><span class="pill">AI 자율보안</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:03 · 최종확인: 2026-09-14 09:00:07</p>
+    <a class="link" href="https://ader.naver.com/v1/45Lt7isiYv7ImhmilUwgvStk4-8hBN7f-GQcdSk-Te6q_jHYaIznvUjJCWaeoZyHVe1JjY6BnDDeJRHg-iTIg6yZJCmerddaCy2pEVOaOfa11pM692Zl7f1KegFDIu9Px1F70-59fP9j_VW5lf88zHwfsa0APrdxgL52GXbKhU5CDj802zmd9vVj2xojvazl9DQKAKZr_XRPTY-FHy1DdtzpZq3OCSF12SYcgFVvpWJExkd31NC5-eJTFufAi8w80ty0EX4Gbadq9yCGUh8csY93yx5ZFX_0BR1jzFxj9hv-Lx5fvfLKhmxMcTzCwwd3sw3LjkWWeSpxVTvVPdCcNNKus0KW-wOJ2g2lIdtz9Fr3K15RuwmPPO7RYUo8U__lyhI3WExZYYhLbXikLAot69ABlzHWnb2ka3pVJpByh5tfbsVMDvp5bjjOX8g3fM4n?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><div class="swiper"><div class="swiper-track"><img src="../images/라온시큐어/Mobile/20260907165008_2.png" alt="라온시큐어 소재"><img src="../images/라온시큐어/Mobile/20260907165008.png" alt="라온시큐어 소재"></div><button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button><button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button></div></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">라온시큐어</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value">AI 보안·인증 플랫폼기업</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value">라온의 기술은 / 고객의 즐거움을 향합니다.</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="pill">시큐업&amp;해커톤</span><span class="pill">AI 신분증</span><span class="pill">AI 모의해커</span><span class="pill">AI 라벨러</span><span class="pill">AI 가드레일</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:08 · 최종확인: 2026-09-14 09:00:12</p>
+    <a class="link" href="https://ader.naver.com/v1/XmkJrrb1U56nvOXuo45-zsxDqO34zJSBNrOtYShTLb-NTI5jkxVvgV71M4TT115oekhDRFYKOLF8ZTq_TjsnGZY1VJUmiO8VxjcYecQlkg6ywO_F6e4Cpl_MGjuePBBZtXdhh4Xh39aROSIpbYciVffYH13Y0Io9X1CgqGwIIJrvKaS8etkSNkql_R-ZLPP11qtgnfEPNKCRYCIOdFw22HqkVpAexz-TzaAT349q6NFbRV4qskIWW6wNGoZTzBZyOceK58VocYbsuAe6T7bhGAQs2cZXGuuyxf_2Hs7bHNcJY9ncSEuL2Ut26AWCfRY20lWquqUh3UEDon3b7xMVqSk_OecOUeqRPRU7OI5-KsQC6QLmAT3XvNdc-ApiLTzCgTPFU5LwF8k3S1w4p7rnTjqkiT-si_mYUAP3wkYIFasgMJ2g2Tn0_DLgC6jCIR_j?c=mnaver.search.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">안랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:08 · 최종확인: 2026-09-14 09:00:13</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">안랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:09 · 최종확인: 2026-09-14 09:00:13</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/파수/PC/20260907165010.png" alt="파수 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">파수</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">AI·데이터·보안의 체계적 실행</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">성과로 이어지는 지속 가능한 AI 혁신 / Make AI Easy and Simple</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">AI</span><span class="pill">Data</span><span class="pill">Security</span><span class="pill">문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">기업형 LLM</span><span class="pill">AI데이터 관리</span><span class="pill">HyperDRM</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="pill">AI DLP</span><span class="pill">N2SF 분류</span><span class="pill">화면 보안</span><span class="pill">출력물 보안</span><span class="pill">악성메일 훈련</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:10 · 최종확인: 2026-09-14 09:00:15</p>
+    <a class="link" href="https://ader.naver.com/v1/_Mi1B2iGJ6og7WGMhKTKONnyto3TtMEfBFpmlibZTpnRg1D95GPlhK0Gd2ZjRe1ahzASB4bpKjWhAPmsKmxp4SIcNg7EQHMfLzHczKLIf6ZJqkAgBv1Ho4BOMhO2b2_6kj4cKYN38AGtMgA0eWs4poFGw4JKdHGdoCI0yqRqSlpMGnufPXDx9Pny7bYnQQo74PV5COvn80Q3SFTcj4JQb9o2U5YsdvSLX37-XZHI7HaixZtH8kSM6tQ6J3jRPbDnkHESrR4MICvQ2u-sP9iV_A61GWKhBmYE6OwgbTGI16M9WCTm_jChicKEkhzElrIbMdgmQ0oN82PRavgWFLvhOB9govoEU15nrzLTrYKax6HAxhOPnio8mcDqphqL-rKjGzpoWIOST51G9-Eauu3jfIkWpqjT66HYY8S7F8imSiR3-BWJdGBm7UOH8Ut02-dOJO3t5kpfhCQ5NcbdThSx_hpVfVFPeyMIMstZTcC49XWAPhZ9uR1TF0LV6UHTNp-X?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">파수</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:11 · 최종확인: 2026-09-14 09:00:16</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/지란지교시큐리티/PC/20260907165012.png" alt="지란지교시큐리티 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">지란지교시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">정보보호부문 4대 공시 항목 준비</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">정보보호 투자·인력·인증·활동 현황 공시 / 지란지교시큐리티 제품으로 핵심수치 공시가능</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">지란지교시큐리티 소개</span><span class="pill">뉴스</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">신청하기</span><span class="pill">점검하기</span><span class="pill">다운로드</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:12 · 최종확인: 2026-09-14 09:00:17</p>
+    <a class="link" href="https://ader.naver.com/v1/as27SUofxiTGpEHq0mE0hEl97OjlQczk4XeY2h86r-NLHLy3j55Xd4Ep4Rz6l9eKzDEMAKC3RL03jnzwc8b5w1pzKAtfKSzVdZNsYlcxeNI867JCkvEw8acE17nBfzixZzT5YgWHDsCsUmQJmU3rCDh6vLkiJmQbBo0452QytG1QA4Gzr0159EjeQxoYdtD11yB2zkCIYpT2l05zrNbvhHEjaXAfttJFd25ojlvDtv3WVFk-BR2BoCOIleCfL2QjdD0UIHL97eU0wmeIqY_2HeNg2Vin3nvo9H94Y1--lnNVM7RluoKR54rEHuOn-BUY9zRqBpRg9nqzHtmblSd6M6JCnLsfdPazwpFeRwHTsC-yKuXEcRrnZWW9Q9kUPQPwjMJmnOru6U7OELRJEy8b6FMZee5RqtJDXp9YiOIGGVb3UXRZWuyUj1e5ec6qDpCqeMrso2kWvysW4Wp3QNOOtx3l3_eTBUqJrveTSCORHF_DKaeMpN2eGFbUMCpR8nTAHZL3ORmRC3p2EwezNjlNahS_fMRvdebRb5TgKHRnsqbQhbMEAFGpcY17j5QAbdNvQwdWy7_yoMePmdiSV9kfCwtyn_ZIe7EGgxG6TwSgvcZNSXTd1iyVWlNDxjXrJWx9?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">지란지교시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:13 · 최종확인: 2026-09-14 09:00:18</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/지니언스/PC/20260907165014.png" alt="지니언스 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">지니언스</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">탐지는 정확하게 대응은 확실하게</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">AI 시대, 더욱 정교해지는 사이버 공격 / 지니언스와 함께 빈틈없이 대응하세요.</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">지니언스 소개</span><span class="pill">제품 소개서</span><span class="pill">지역별 파트너</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">자율형 SOC</span><span class="pill">AI 가시성</span><span class="pill">IT 자산 관리</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:14 · 최종확인: 2026-09-14 09:00:19</p>
+    <a class="link" href="https://ader.naver.com/v1/q5DaOQAUsCpQ3xeYtBLkF91Xun0Lemeh-My24KAHcgUGLzm-is3il_AqoOTAB7vjJuJl8XmDTqc1VOi-LIoKOY060KLhnpKrJvlBM1_GNgNOpLpxWntd0u326LBP0nPtxnl303AYracdGdXVjRjLozziEYv5qx0sjKlYqCv6m-EJNo18T8-GCw8zA786C1ESdYPB6BP0hgDVEITPDF5ghWliSwNgIKARVE8nTZMtyWOCwX89Y-X8peHmFIJiZT2Zp6MtzJlKdEVsOMFgj-BeLO6FyZc_L72zjkK44X_-kdPQpGZGhzOqFi6anVEjHNiD4cDtN4Zqd5bE0pCn2wHuPZxGAwkZorwB5p0GHY7NUaFRhS1x1AIpJVbZM1NwZbYTAs7nE2I6KfI2CeItjQQ1cg==?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><div class="swiper"><div class="swiper-track"><img src="../images/지니언스/Mobile/20260907181108_2.png" alt="지니언스 소재"><img src="../images/지니언스/Mobile/20260907181108.png" alt="지니언스 소재"></div><button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button><button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button></div></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">지니언스</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value">통합 보안 플랫폼 지니언스</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value">더욱 정교해지는 사이버 공격 / 지니언스와 빈틈없이 대응하세요</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 18:11:08 · 최종확인: 2026-09-07 18:11:08</p>
+    <a class="link" href="https://ader.naver.com/v1/ikdqxYK3tnw_p491EoxQJZ7_8F1s5-XF75faCa36LAsHB2kp09NBI3VFV1JOwrvHRi5Jh5df_0xx51dDW34k7uHF9ReII1H0JiPshHnqTVPxOZjvpwp2zPhkhTcX0BA128HZ1HVUpER6DmMwFb4gLXLgyOF8wnsY_qgcE4hgUNj97rYDepc4Z06-fJEzwPuMGUOq-WI5CXNSXPugTiKC7kWyVB5HPhMV_sRkEiPDsNNLNXOPMEnDC1h-IfHzhKi6xmrMxBHeXnO1AMbfdAFS1zBGYTCT5ZaL7BjldFzSIyyb8bvRNLdtn_eiSXRzXoT_G9jtCUSc8hATt1pr1_IonPGVSrIjq8neHFOTk-RulDkuuacsV9FXw9ReWMlXes9pkEuu1_bJmPSB6h8OHxHt0g==?c=mnaver.search.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC"><div class="creative-panel" data-creative="1" hidden>
+  <div class="thumb-cell"><img src="../images/소프트캠프/PC/20260907173731.png" alt="소프트캠프 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">소프트캠프 / 소재 2개</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">웹서비스를 위한 RBI 보안 접속</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">RBI 기술로 WebAPI 변조를 차단하고 / 공격자와 웹 서버를 격리해 웹 보안 실현</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">소프트캠프 공식 웹사이트</span><span class="pill">문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">서비스 소개</span><span class="pill">Insights</span><span class="pill">도입 문의</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 17:37:31 · 최종확인: 2026-09-07 17:46:22</p>
+    <a class="link" href="https://ader.naver.com/v1/1lUIG-U3KrVsrluw_by01OHibPsb9M6UpLRrztuXER9XXWpe4-iKCbrDg_6QNOzcuqLX_2979-6uM5lGKjad3Cn2IXVc-9jtnK3C6E6YR42YmOcXGjXCzBWLIa7VppeAXN0dz10LKWi43i-L2xExXbwCDVUIe-_oQNYCISA8zFXowFZnRVZctjq-9oMCAc8mRMBj6SI7x9KeCSLXe-zlYSL4D-TvTjB4uU2003HoIhtUrcbOi4R0wi6aQnTwY2Dh35a4cqBp-XrYODhuJRj3YHrcCT_uSV1XgMPHxxfnGPgGOsIgTIC7Q3iF0O-5tYDeHaFC9BtrXeHKxwjnEi19Ll5r5KIROF7iNjHczpKq5hTK28yVsQzUihX7SeOqg2cNh8RcVCx75JVL9SRUfLufKjAouT9ZHRlrF_9XleGA7hevKAAysIwcLeeSsvO3bGYznkdGTjFkBVkhXBuLlumvemETsmLt6avekeUctyJRs7w=?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div><div class="creative-panel" data-creative="2">
+  <div class="thumb-cell"><img src="../images/소프트캠프/PC/20260907181006.png" alt="소프트캠프 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">소프트캠프 / 소재 2개</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">클라우드 환경의 통합 계정관리</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">조건과 상황에 따라 신원을 지속 검증하고 / 접근권한을 관리해 제로 트러스트 보안 실현</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">소프트캠프 공식 웹사이트</span><span class="pill">문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">서비스 소개</span><span class="pill">주요 기능</span><span class="pill">데모 요청</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 18:10:06 · 최종확인: 2026-09-14 09:00:25</p>
+    <a class="link" href="https://ader.naver.com/v1/Jxuhis80Cg92MBWM9xDzFnT-cex2AbHoIifGXIatHnKzhAdPmbg8pePUJcDehRq6y6vg49TtNInwunpseJKGO4v4wQ51h-d11-grACo1LAdaw5y_k250EHiU08c04BpHGppNts3rf5w51DuY7WXfDb5242j_PHVBk7BBPxxjhdyJCeqUgHHgx7BsrAxwJnmbGZEkIaTl_dcLOM--d-oaj2DaTY0bquRcmZwJ7LdO09OWo0B9dLBLK4cUjMGtCOMEkBYIsdCJyQ-m5hjnyGj_y0X6BYwyCV3rL2UQhumniMDb0uT63set4e9T1ETvNCpoyaDnf14wcqptgvu1b1A1pNlaKP80TIXoBHo3whPBsV4KvcvORrkkM1-LmbxyX24AlXe0MrCfRClszKIXhInDCAt6mbLvJRrMst2F4iQQ8KAm4JYQyV32a8_DeGLZ1sc1hCnNptwhNPHKHFU0zz3bcA==?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div><div class="creative-switch"><button type="button" class="creative-btn" data-creative="1">1</button><button type="button" class="creative-btn active" data-creative="2">2</button></div></div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">소프트캠프</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:21 · 최종확인: 2026-09-14 09:00:26</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">드림시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:22 · 최종확인: 2026-09-14 09:00:27</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">드림시큐리티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:22 · 최종확인: 2026-09-14 09:00:27</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/수산아이앤티/PC/20260907165024.png" alt="수산아이앤티 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">수산아이앤티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">28년차 종합 정보보호 전문기업</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">공공·기업·국방·금융/구축부터 유지보수까지 / 수산아이앤티만의 맞춤형 인터넷 보안솔루션</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">SSL가시성</span><span class="pill">웹차단</span><span class="pill">정보유출방지</span><span class="pill">AI보안</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">소개자료</span><span class="pill">제품문의</span><span class="pill">보안소식</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:24 · 최종확인: 2026-09-14 09:00:29</p>
+    <a class="link" href="https://ader.naver.com/v1/QAB6Kso6zt-KJ-cLTkOgZ39e-9Tri6sVde5nnM7Q84VtwKN_hQONg_ht7KqKebTVsKMKRgYGeIZUFfJ_Cv9zZ-8cV_kmEu-CO2fF0cR3mtInr5vYy2HI5uFXSBYywjkZ7A1srBVkHi89wKyglXut14smcWzm7gn6dQRtbSa6oI3Eyen8WP2xLSevtXPaG7jem8f9cAHwTuvQFiBVD6r1q1hyXoOK8TsccZU5J-ElENtAyuwE1SMFWnzP6MDxU9176c-bNE3cW6pjOPKNnYpW0nwITlRRwLhk-_K0TqQoSTr7BjRDLICRTocQJXfHX9-d?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><div class="swiper"><div class="swiper-track"><img src="../images/수산아이앤티/Mobile/20260907165029_2.png" alt="수산아이앤티 소재"><img src="../images/수산아이앤티/Mobile/20260907165029.png" alt="수산아이앤티 소재"></div><button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button><button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button></div></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">수산아이앤티</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value">수산아이앤티</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value">공공·기업·국방·금융까지 / 고객의 정보 자산을 지킵니다</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:29 · 최종확인: 2026-09-14 09:00:34</p>
+    <a class="link" href="https://ader.naver.com/v1/LKZaxrwD5DJnoUtgX6zkLnE7XJjnNUt6RKd53EzH85CVQYnQ8Kl0tZoS6QuHFYJZ0S2WFSh44UcmC_ieJto5YwNXgEWrJKf6LNTPhxCuhQvoIijmap6ih6Q8Z3H1WdK5biGqQf5RRBttWkjEL1a5T3VFTHcC7ELAj4S_3scTVab7Fj09Rh_C4GnUscnVz3HSe4rv50-QHCn6qywW1_Mrh1Jbj64v4EWSzNeRy5AJ3XaT963pdp15B1JssfHJX-3mQnfZdjAGnE_MMvGGJZ-MkMrrpAQJgTeBisMpEozvB4mFFTbgXUEIP9H1bZdbmNjP?c=mnaver.search.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">SGA솔루션즈</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:29 · 최종확인: 2026-09-14 09:00:34</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">SGA솔루션즈</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:30 · 최종확인: 2026-09-14 09:00:35</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><img src="../images/모니터랩/PC/20260907165031.png" alt="모니터랩 소재"></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-new">신규</span><span class="keyword">모니터랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value">파일 속 위협까지 차단하는 웹보안</div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value">WAAP+CDR 통합 솔루션으로 / 파일 기반 위협 원천 차단</div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="pill">아이온클라우드란?</span><span class="pill">WAAP 무료 트라이얼</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="pill">WAAP</span><span class="pill">CDR</span><span class="pill">CDR문의하기</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:31 · 최종확인: 2026-09-14 09:00:36</p>
+    <a class="link" href="https://ader.naver.com/v1/liV43p2M1wL4k1pznMjk8L8hD2IGS6jY5laU2qUAbqx4KhJ4dZa7LZjsnnYOVjYxXGS6IuFwUNoXL1lesc-IFgmhmdyApk_rsqkDoAgDG-GLBen5RFEiEtlhU3uw9qgs3OaSLN_N-5Blkiqs3mBqx6j3qjfEexLLllf-RwdtwZut6nfeTYq6OU8WS85Y15Vk1QGYeEbb3_j2TAPx-6emYLX7WvVZjCJan69nUjQQCctfCv5KIwy0vFZJ_2Y0_ls_Wp1JYN0OwEpN9ZW74-to3RUXhoyP-Klith9ztDzcCIqf--ttfov4d2osRRgWX8qr?c=naver.search.pc.brand&amp;t=0" target="_blank">원문 보기</a>
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">모니터랩</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:32 · 최종확인: 2026-09-14 09:00:37</p>
+    
+  </div>
+</div>
+</div>
+
+
+<div class="brand-col">
+  <div class="device-switch">
+    <button type="button" class="device-btn active" data-device="PC">PC</button>
+    <button type="button" class="device-btn" data-device="Mobile">Mobile</button>
+  </div>
+  <div class="device-view" data-device="PC">
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">아톤</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>main_title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>main_desc</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>link_button_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>product_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>light_plus_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:33 · 최종확인: 2026-09-14 09:00:37</p>
+    
+  </div>
+</div>
+  <div class="device-view" data-device="Mobile" hidden>
+  <div class="thumb-cell"><span class="none">이미지 없음</span></div>
+  <div class="body-cell">
+    <div class="row"><span class="badge badge-off">미운영</span><span class="keyword">아톤</span><span class="row-arrow"></span></div>
+    
+    <div class="fields" hidden>
+    <div class="field">
+      <span class="field-label">타이틀 <code>title</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">카피 <code>desc_wrap</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">서브링크 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">상품 <code>(모바일 없음)</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    <div class="field">
+      <span class="field-label">하단스트립 <code>premium_item</code></span>
+      <div class="field-value"><span class="field-empty">-</span></div>
+    </div>
+    </div>
+    <p class="meta">수집일시: 2026-09-07 16:50:33 · 최종확인: 2026-09-14 09:00:38</p>
+    
+  </div>
+</div>
+</div>
+
+  </div>
+</details>
+
+</div>
+<div id="view-logs" hidden>
+<table class="logs-table"><thead><tr><th>실행일시</th><th>방식</th><th>대상</th><th>신규</th><th>변경</th><th>미운영전환</th><th>동일</th><th>오류수</th><th>오류내용</th></tr></thead><tbody><tr><td>2026-09-14 09:00:05</td><td>자동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 18:10:50</td><td>수동</td><td>11</td><td>1</td><td>0</td><td>0</td><td>21</td><td>0</td><td></td></tr><tr><td>2026-09-07 18:10:19</td><td>수동</td><td>11</td><td>1</td><td>0</td><td>0</td><td>21</td><td>0</td><td></td></tr><tr><td>2026-09-07 18:09:46</td><td>수동</td><td>11</td><td>2</td><td>0</td><td>0</td><td>20</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:46:01</td><td>수동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:37:42</td><td>수동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:37:11</td><td>수동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:36:38</td><td>수동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:36:05</td><td>수동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:35:30</td><td>수동</td><td>11</td><td>0</td><td>0</td><td>0</td><td>22</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:17:54</td><td>수동</td><td>11</td><td>0</td><td>2</td><td>0</td><td>20</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:17:22</td><td>수동</td><td>11</td><td>0</td><td>1</td><td>0</td><td>21</td><td>0</td><td></td></tr><tr><td>2026-09-07 17:16:46</td><td>수동</td><td>11</td><td>0</td><td>1</td><td>0</td><td>21</td><td>0</td><td></td></tr><tr><td>2026-09-07 16:50:44</td><td>수동</td><td>11</td><td>0</td><td>1</td><td>0</td><td>21</td><td>0</td><td></td></tr><tr><td>2026-09-07 16:50:00</td><td>수동</td><td>11</td><td>10</td><td>0</td><td>12</td><td>0</td><td>0</td><td></td></tr></tbody></table>
+</div>
+</div>
+
+<dialog id="lightbox" class="lightbox">
+  <img id="lightbox-img" src="" alt="">
+  <div class="swiper lightbox-swiper" id="lightbox-swiper" hidden>
+    <div class="swiper-track" id="lightbox-track"></div>
+    <button type="button" class="swiper-nav swiper-prev" aria-label="이전 이미지">‹</button>
+    <button type="button" class="swiper-nav swiper-next" aria-label="다음 이미지">›</button>
+  </div>
+</dialog>
+
+<script>
+function showView(name) {
+  document.getElementById('view-dashboard').hidden = (name !== 'dashboard');
+  document.getElementById('view-logs').hidden = (name !== 'logs');
+  document.querySelectorAll('.tab-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.view === name);
+  });
+}
+
+function setStatus(el, text, isError) {
+  el.textContent = text;
+  el.classList.toggle('error', !!isError);
+}
+
+function postJson(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {}),
+  }).then(function(res) {
+    return res.json().then(function(data) { return {ok: res.ok, data: data}; });
+  });
+}
+
+function addKeyword() {
+  var input = document.getElementById('new-kw-input');
+  var btn = document.getElementById('kw-add-btn');
+  var status = document.getElementById('kw-add-status');
+  var kw = input.value.trim();
+  if (!kw) { setStatus(status, '키워드를 입력하세요', true); return; }
+
+  btn.disabled = true;
+  setStatus(status, '추가하는 중...', false);
+  postJson('/api/keywords', {'브랜드명': kw}).then(function(r) {
+    if (r.ok && r.data.ok) {
+      setStatus(status, '추가됨 — 새로고침합니다...', false);
+      location.reload();
+    } else {
+      setStatus(status, '실패: ' + (r.data.error || '알 수 없는 오류'), true);
+      btn.disabled = false;
+    }
+  }).catch(function() {
+    setStatus(status, '서버에 연결할 수 없습니다. python3 server.py를 먼저 실행하세요.', true);
+    btn.disabled = false;
+  });
+}
+
+function runManualCollect() {
+  var btn = document.getElementById('manual-collect-btn');
+  var status = document.getElementById('manual-collect-status');
+  btn.disabled = true;
+  setStatus(status, '수집 중... (키워드마다 몇 초씩 걸립니다)', false);
+  postJson('/api/collect', {}).then(function(r) {
+    if (r.ok && r.data.ok) {
+      setStatus(status, '완료: ' + JSON.stringify(r.data.counts) + ' — 새로고침합니다...', false);
+      location.reload();
+    } else {
+      setStatus(status, '실패: ' + (r.data.error || '알 수 없는 오류'), true);
+      btn.disabled = false;
+    }
+  }).catch(function() {
+    setStatus(status, '서버에 연결할 수 없습니다. python3 server.py를 먼저 실행하세요.', true);
+    btn.disabled = false;
+  });
+}
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.swiper-nav');
+  if (!btn) return;
+  var track = btn.closest('.swiper').querySelector('.swiper-track');
+  var dir = btn.classList.contains('swiper-next') ? 1 : -1;
+  track.scrollBy({left: dir * track.clientWidth, behavior: 'auto'});
+});
+
+document.addEventListener('click', function(e) {
+  var img = e.target.closest('.thumb-cell img');
+  if (!img) return;
+  var lightbox = document.getElementById('lightbox');
+  var singleImg = document.getElementById('lightbox-img');
+  var swiperBox = document.getElementById('lightbox-swiper');
+  var track = img.closest('.swiper-track');
+  if (track) {
+    // 카드 쪽이 스와이프(모바일 2장)면 라이트박스도 같은 슬라이드 순서로 스와이프되게 한다.
+    var slideImgs = track.querySelectorAll('img');
+    var idx = Array.prototype.indexOf.call(slideImgs, img);
+    document.getElementById('lightbox-track').innerHTML = Array.prototype.map.call(
+      slideImgs, function(s) { return '<img src="' + s.src + '" alt="' + s.alt + '">'; }
+    ).join('');
+    singleImg.hidden = true;
+    swiperBox.hidden = false;
+    lightbox.showModal();
+    // 클릭한 슬라이드부터 보여준다(showModal 이후라야 clientWidth가 실제 값으로 잡힌다).
+    swiperBox.querySelector('.swiper-track').scrollLeft = idx * swiperBox.clientWidth;
+  } else {
+    singleImg.src = img.src;
+    singleImg.hidden = false;
+    swiperBox.hidden = true;
+    lightbox.showModal();
+  }
+});
+
+document.getElementById('lightbox').addEventListener('click', function(e) {
+  // 이미지(단일/스와이프 슬라이드) 클릭, 화살표 클릭은 닫지 않고, 그 밖(배경) 클릭만 닫는다.
+  if (e.target.closest('#lightbox-img, .lightbox-swiper img, .swiper-nav')) return;
+  this.close();
+});
+document.getElementById('lightbox-img').addEventListener('click', function() {
+  this.closest('dialog').close(); // 이미지 클릭으로도 닫기(zoom-out 커서와 짝)
+});
+document.addEventListener('click', function(e) {
+  var img = e.target.closest('.lightbox-swiper img');
+  if (img) img.closest('dialog').close(); // 스와이프 슬라이드 클릭으로도 닫기
+});
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.device-btn');
+  if (!btn) return;
+  var col = btn.closest('.brand-col');
+  var device = btn.dataset.device;
+  col.querySelectorAll('.device-btn').forEach(function(b) { b.classList.toggle('active', b === btn); });
+  col.querySelectorAll('.device-view').forEach(function(v) { v.hidden = (v.dataset.device !== device); });
+});
+
+document.addEventListener('click', function(e) {
+  var row = e.target.closest('.row');
+  if (!row) return;
+  var bodyCell = row.closest('.body-cell');
+  var fields = bodyCell && bodyCell.querySelector('.fields');
+  if (!fields) return; // 필드가 없는 row(예: "새 기록 없음" 빈 칸)는 아코디언 대상이 아님
+  fields.hidden = !fields.hidden;
+  row.classList.toggle('expanded', !fields.hidden);
+});
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.creative-btn');
+  if (!btn) return;
+  var view = btn.closest('.device-view'); // PC/Mobile 탭마다 소재 목록이 독립이라 이 범위로 제한
+  var n = btn.dataset.creative;
+  view.querySelectorAll('.creative-btn').forEach(function(b) { b.classList.toggle('active', b === btn); });
+  view.querySelectorAll('.creative-panel').forEach(function(p) { p.hidden = (p.dataset.creative !== n); });
+});
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.kw-delete');
+  if (!btn) return;
+  var kw = btn.dataset.kw;
+  if (!confirm(kw + ' 키워드를 삭제할까요?\n(수집 기록은 남고, 대시보드 컬럼만 사라집니다)')) return;
+
+  btn.disabled = true;
+  postJson('/api/keywords/delete', {'브랜드명': kw}).then(function(r) {
+    if (r.ok && r.data.ok) {
+      location.reload();
+    } else {
+      alert('삭제 실패: ' + (r.data.error || '알 수 없는 오류'));
+      btn.disabled = false;
+    }
+  }).catch(function() {
+    alert('서버에 연결할 수 없습니다. python3 server.py를 먼저 실행하세요.');
+    btn.disabled = false;
+  });
+});
+</script>
+</body>
+</html>

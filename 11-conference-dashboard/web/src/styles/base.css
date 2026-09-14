@@ -1,0 +1,39 @@
+/* 리셋과 공용 요소 — 타이포, 버튼, 입력, 칩, 안내 문구 */
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--canvas); color: var(--ink);
+  font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont,
+               "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 14px; line-height: 1.55;
+}
+h1, h2 { margin: 0; letter-spacing: -.02em; }
+h1 { font-size: 20px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; border-radius: 3px; }
+
+.btn {
+  all: unset; box-sizing: border-box; padding: 7px 13px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 600; border: 1px solid var(--line2);
+  color: var(--ink); background: var(--surface);
+}
+.btn:hover { border-color: var(--ink3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+input[type="search"], select {
+  font: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--line2);
+  border-radius: 6px; background: var(--surface); color: var(--ink); min-width: 140px;
+}
+input[type="search"] { min-width: 250px; }
+
+.chip {
+  all: unset; box-sizing: border-box; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--line2); color: var(--ink2);
+  display: inline-flex; gap: 6px; align-items: center;
+}
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.dot { width: 9px; height: 9px; border-radius: 3px; border: 1px solid rgba(0,0,0,.2); display: inline-block; }
+
+.hint { font-size: 12px; color: var(--ink3); }
+.spacer { flex: 1; }
+.empty { padding: 36px; text-align: center; color: var(--ink3); }
+.mono { font-variant-numeric: tabular-nums; }

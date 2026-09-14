@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.ig-tracker.daily</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONUTF8</key><string>1</string>
+        <key>PYTHONIOENCODING</key><string>UTF-8</string>
+    </dict>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/raon/Desktop/myProject/Project/13-instagram-follower-tracker/runner/.venv/bin/python</string>
+        <string>/Users/raon/Desktop/myProject/Project/13-instagram-follower-tracker/runner/track.py</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/raon/Desktop/myProject/Project/13-instagram-follower-tracker/runner</string>
+    <key>StartCalendarInterval</key>
+    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <key>StandardOutPath</key><string>/Users/raon/Desktop/myProject/Project/13-instagram-follower-tracker/runner/tracker.log</string>
+    <key>StandardErrorPath</key><string>/Users/raon/Desktop/myProject/Project/13-instagram-follower-tracker/runner/tracker.err.log</string>
+</dict>
+</plist>

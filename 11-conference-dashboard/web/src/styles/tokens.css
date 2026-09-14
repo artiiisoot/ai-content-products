@@ -1,0 +1,21 @@
+/* 색·그림자 토큰. 라이트/다크를 여기서만 정의합니다. */
+:root {
+  --ink: #10161d; --ink2: #495765; --ink3: #78868f;
+  --canvas: #f0f3f6; --surface: #fff; --surface2: #f7f9fb;
+  --line: #dde4ea; --line2: #c2ccd6;
+  --accent: #12489e; --accent2: #1d63ce; --accent-soft: #e5eefc;
+  --ok: #0b6b5e;
+  --crit: #a32218; --crit-bg: #fbe4e1;
+  --shadow: 0 1px 2px rgba(16,22,29,.06), 0 8px 24px -18px rgba(16,22,29,.3);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7edf3; --ink2: #a9b6c2; --ink3: #7d8b98;
+    --canvas: #0d1218; --surface: #151c24; --surface2: #1a222c;
+    --line: #28323d; --line2: #3a4653;
+    --accent: #7faeff; --accent2: #9cc2ff; --accent-soft: #17253a;
+    --ok: #5fc3b2;
+    --crit: #f29a92; --crit-bg: #331a18;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.7);
+  }
+}
